@@ -41,6 +41,7 @@
       ],
       'sources': [
         'src/main.cpp',
+        'src/impl.cpp',
         'include/earcut.hpp',
       ],
     },
