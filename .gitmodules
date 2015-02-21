@@ -1,0 +1,3 @@
+[submodule "test/js"]
+	path = test/js
+	url = https://github.com/mapbox/earcut.git
