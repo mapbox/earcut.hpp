@@ -40,10 +40,10 @@ private:
             : p({ { util::nth<0, Point>::get(p_), util::nth<1, Point>::get(p_) } }) {
         }
 
-        Node(const Node &) = delete;
-        Node &operator=(const Node &) = delete;
-        Node(Node &&) = default;
-        Node &operator=(Node &&) = default;
+        // Node(const Node &) = delete;
+        // Node &operator=(const Node &) = delete;
+        // Node(Node &&) = default;
+        // Node &operator=(Node &&) = default;
 
         // vertex coordinates
         const Vertex p;
