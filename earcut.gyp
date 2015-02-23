@@ -1,12 +1,12 @@
 {
   'target_defaults': {
     'default_configuration': 'Release',
-    'cflags_cc': [ '-std=c++11', '-Wall', '-Wextra', '-Wshadow', '-frtti', '-fexceptions' ],
+    'cflags_cc': [ '-std=c++11', '-Wall', '-Wextra', '-Wshadow', '-fno-rtti', '-fexceptions' ],
     'xcode_settings': {
       'CLANG_CXX_LANGUAGE_STANDARD':'c++11',
       'MACOSX_DEPLOYMENT_TARGET': '10.7',
       'CLANG_CXX_LIBRARY': 'libc++',
-      'OTHER_CPLUSPLUSFLAGS': [ '-Wall', '-Wextra', '-Wshadow', '-frtti', '-fexceptions' ],
+      'OTHER_CPLUSPLUSFLAGS': [ '-Wall', '-Wextra', '-Wshadow', '-fno-rtti', '-fexceptions' ],
     },
     'configurations': {
       'Debug': {
@@ -32,17 +32,35 @@
       },
     },
   },
+
   'targets': [
+    { 'target_name': 'fixtures',
+      'type': 'static_library',
+      'sources': [
+        '<!@(find test/fixtures -name "*.cpp" -o -name "*.hpp")',
+      ],
+    },
+
     { 'target_name': 'test',
-      'product_name': 'test',
       'type': 'executable',
+      'dependencies': [ 'fixtures' ],
       'include_dirs': [
         'include',
       ],
       'sources': [
-        'src/main.cpp',
-        'src/impl.cpp',
-        'include/earcut.hpp',
+        'test/test.cpp',
+        'test/tap.cpp',
+      ],
+    },
+
+    { 'target_name': 'bench',
+      'type': 'executable',
+      'dependencies': [ 'fixtures' ],
+      'include_dirs': [
+        'include',
+      ],
+      'sources': [
+        'test/bench.cpp',
       ],
     },
   ],

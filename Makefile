@@ -3,13 +3,15 @@ BUILDTYPE ?= Release
 all: test
 
 build/Makefile:
-	deps/run_gyp earcut.gyp --depth=. -Goutput_dir=. --generator-output=./build -f make
+	@deps/run_gyp earcut.gyp --depth=. -Goutput_dir=. --generator-output=./build -f make
 
 .PHONY: test
 test: build/Makefile
-	make -C build test
-	build/$(BUILDTYPE)/test
+	@make -C build test
 
+.PHONY: bench
+bench: build/Makefile
+	@make -C build bench
 
 .PHONY: xcode
 xcode:
