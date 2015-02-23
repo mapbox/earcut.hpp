@@ -3,7 +3,8 @@
 class Tap {
 public:
     class Test;
-    static void Start();
+    Tap();
+    ~Tap();
 
 private:
     static int total;

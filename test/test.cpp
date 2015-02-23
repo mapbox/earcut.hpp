@@ -76,7 +76,7 @@ void areaTest(const T &polygons, const std::string &name, double expectedDeviati
 }
 
 int main() {
-    Tap::Start();
+    Tap tap;
 
     areaTest(mapbox::fixtures::integerPolygons, "bad_hole", 0.0420);
     areaTest(mapbox::fixtures::integerPolygons, "building");

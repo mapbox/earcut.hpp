@@ -46,7 +46,7 @@ private:
         Node &operator=(Node &&) = default;
 
         // vertex coordinates
-        const std::array<Earcut::X, 2> p;
+        const Vertex p;
 
         // previous and next vertice nodes in a polygon ring
         N prev = 0;

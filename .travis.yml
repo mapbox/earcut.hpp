@@ -1,0 +1,15 @@
+sudo: false
+
+language: cpp
+
+compiler: clang
+
+env:
+ - BUILDTYPE: Debug
+ - BUILDTYPE: Release
+
+before_script:
+    make test
+
+script:
+    build/${BUILDTYPE}/test

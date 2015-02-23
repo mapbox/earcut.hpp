@@ -6,26 +6,30 @@ int Tap::total = 0;
 int Tap::errored = 0;
 bool Tap::started = false;
 
-void Tap::Start() {
+Tap::Tap() {
     if (started) {
-        return;
+        throw std::runtime_error("Tap cannot be initialized more than once");
     }
 
     std::cout << "TAP version 13" << std::endl;
 
     atexit([]() {
-        std::cout << std::endl;
-        std::cout << "1.." << total << std::endl;
-        std::cout << "# tests " << total << std::endl;
-        std::cout << "# pass  " << (total - errored) << std::endl;
-        std::cout << std::endl;
-        if (!errored) {
-            std::cout << "# ok" << std::endl;
-        } else {
-            std::cout << "# not ok" << std::endl;
-        }
-        std::cout << std::endl;
+
     });
+}
+
+Tap::~Tap() {
+    std::cout << std::endl;
+    std::cout << "1.." << total << std::endl;
+    std::cout << "# tests " << total << std::endl;
+    std::cout << "# pass  " << (total - errored) << std::endl;
+    std::cout << std::endl;
+    if (!errored) {
+        std::cout << "# ok" << std::endl << std::endl;
+    } else {
+        std::cout << "# not ok" << std::endl << std::endl;
+        exit(1);
+    }
 }
 
 Tap::Test::Test(const std::string &name) {
