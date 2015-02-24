@@ -50,7 +50,7 @@ std::string formatPercent(double num) {
     return std::to_string(std::round(1e8 * num) / 1e6) + "%";
 }
 
-template <typename T>
+template <typename Coord, typename T>
 void areaTest(const T &polygons, const std::string &name, double expectedDeviation = 0.000001) {
     Tap::Test t(name);
 
@@ -59,7 +59,7 @@ void areaTest(const T &polygons, const std::string &name, double expectedDeviati
         return t.fail(std::string { "Cannot find polygon with name " } + name);
     }
     const auto &data = it->second;
-    mapbox::Earcut<typename std::remove_reference<typename T::mapped_type>::type> earcut;
+    mapbox::Earcut<Coord> earcut;
     earcut(data);
 
     const auto expectedArea = polygonArea(data);
@@ -78,18 +78,18 @@ void areaTest(const T &polygons, const std::string &name, double expectedDeviati
 int main() {
     Tap tap;
 
-    areaTest(mapbox::fixtures::integerPolygons, "bad_hole", 0.0420);
-    areaTest(mapbox::fixtures::integerPolygons, "building");
-    areaTest(mapbox::fixtures::integerPolygons, "degenerate");
-    areaTest(mapbox::fixtures::doublePolygons, "dude");
-    areaTest(mapbox::fixtures::integerPolygons, "empty_square");
-    areaTest(mapbox::fixtures::integerPolygons, "water_huge", 0.0015);
-    areaTest(mapbox::fixtures::integerPolygons, "water_huge2", 0.0020);
-    areaTest(mapbox::fixtures::integerPolygons, "water", 0.0019);
-    areaTest(mapbox::fixtures::integerPolygons, "water2");
-    areaTest(mapbox::fixtures::integerPolygons, "water3");
-    areaTest(mapbox::fixtures::integerPolygons, "water3b");
-    areaTest(mapbox::fixtures::integerPolygons, "water4");
+    areaTest<int>(mapbox::fixtures::integerPolygons, "bad_hole", 0.0420);
+    areaTest<int>(mapbox::fixtures::integerPolygons, "building");
+    areaTest<int>(mapbox::fixtures::integerPolygons, "degenerate");
+    areaTest<double>(mapbox::fixtures::doublePolygons, "dude");
+    areaTest<int>(mapbox::fixtures::integerPolygons, "empty_square");
+    areaTest<int>(mapbox::fixtures::integerPolygons, "water_huge", 0.0015);
+    areaTest<int>(mapbox::fixtures::integerPolygons, "water_huge2", 0.0020);
+    areaTest<int>(mapbox::fixtures::integerPolygons, "water", 0.0019);
+    areaTest<int>(mapbox::fixtures::integerPolygons, "water2");
+    areaTest<int>(mapbox::fixtures::integerPolygons, "water3");
+    areaTest<int>(mapbox::fixtures::integerPolygons, "water3b");
+    areaTest<int>(mapbox::fixtures::integerPolygons, "water4");
 
     return 0;
 }
