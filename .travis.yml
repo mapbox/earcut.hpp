@@ -1,15 +1,23 @@
-sudo: false
-
 language: cpp
 
-compiler: clang
+compiler:
+- clang
+- gcc
 
 env:
  - BUILDTYPE: Debug
  - BUILDTYPE: Release
 
+before_install:
+- sudo add-apt-repository --yes ppa:ubuntu-toolchain-r/test
+- sudo apt-get update -y
+
+install:
+- sudo apt-get -y install gcc-4.8 g++-4.8
+
 before_script:
-    make test
+- if [[ ${CXX} == "g++" ]]; then export CXX="g++-4.8" CC="gcc-4.8" ; fi
+- make test
 
 script:
-    build/${BUILDTYPE}/test
+- build/${BUILDTYPE}/test
