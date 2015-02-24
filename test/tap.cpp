@@ -1,6 +1,7 @@
 #include "tap.hpp"
 
 #include <iostream>
+#include <stdexcept>
 
 int Tap::total = 0;
 int Tap::errored = 0;
