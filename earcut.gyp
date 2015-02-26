@@ -1,8 +1,8 @@
 {
   'target_defaults': {
     'default_configuration': 'Release',
+    'cflags': [ '-std=c99', '-Wall', '-Wextra', '-Wshadow' ],
     'cflags_cc': [ '-std=c++11', '-Wall', '-Wextra', '-Wshadow', '-fno-rtti', '-fexceptions' ],
-    'cflags_cc': [ '-std=c99', '-Wall', '-Wextra', '-Wshadow' ],
     'xcode_settings': {
       'CLANG_CXX_LANGUAGE_STANDARD':'c++11',
       'CLANG_C_LANGUAGE_STANDARD':'c99',
