@@ -1,25 +1,27 @@
 BUILDTYPE ?= Release
 
 .PHONY: all
-all: test
-	@make -C build
+all: build/Makefile
+	make -C build
 
-build/Makefile:
-	@deps/run_gyp earcut.gyp --depth=. -Goutput_dir=. --generator-output=./build -f make
+build-%: build/Makefile
+	make -C build $*
 
-.PHONY: test
-test: build/Makefile
-	@make -C build test
+run-%: build-%
+	build/$(BUILDTYPE)/$*
 
-.PHONY: bench
-bench: build/Makefile
-	@make -C build bench
+config.gypi:
+	./configure
+
+build/Makefile: config.gypi
+	deps/run_gyp earcut.gyp -Iconfig.gypi --depth=. -Goutput_dir=. --generator-output=./build -f make
 
 .PHONY: xcode
-xcode:
-	deps/run_gyp earcut.gyp --depth=. -Goutput_dir=. --generator-output=./build -f xcode
+xcode: config.gypi
+	deps/run_gyp earcut.gyp -Iconfig.gypi --depth=. -Goutput_dir=. --generator-output=./build -f xcode
 	open build/earcut.xcodeproj
 
 .PHONY: clean
 clean:
-	rm -rf build
+	-rm config.gypi
+	-rm -rf build

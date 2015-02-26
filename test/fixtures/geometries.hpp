@@ -33,23 +33,5 @@ extern const IntegerPolygon water3;
 extern const IntegerPolygon water3b;
 extern const IntegerPolygon water4;
 
-static const std::map<std::string, const IntegerPolygon &> integerPolygons = {
-    { "bad_hole", bad_hole },
-    { "building", building },
-    { "degenerate", degenerate },
-    { "empty_square", empty_square },
-    { "water_huge", water_huge },
-    { "water_huge2", water_huge2 },
-    { "water", water },
-    { "water2", water2 },
-    { "water3", water3 },
-    { "water3b", water3b },
-    { "water4", water4 },
-};
-
-static const std::map<std::string, const DoublePolygon &> doublePolygons = {
-    { "dude", dude },
-};
-
 }
 }

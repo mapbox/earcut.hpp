@@ -19,10 +19,13 @@ template <std::size_t I, typename T> struct nth {
 
 template <typename Coord, typename N = uint32_t>
 class Earcut {
-private:
+public:
     using Vertex = std::array<Coord, 2>;
-
     using Triangles = std::vector<Vertex>;
+    Triangles triangles;
+
+    template <typename Polygon>
+    void operator()(const Polygon &points);
 
 private:
     struct Node {
@@ -47,11 +50,6 @@ private:
         N prevZ = 0, nextZ = 0;
     };
 
-public:
-    Triangles triangles;
-
-    template <typename Polygon>
-    void operator()(const Polygon &points);
 
 private:
     template <typename Ring> N linkedList(const Ring &points, const bool clockwise);
@@ -760,7 +758,8 @@ N Earcut<Coord, N>::splitPolygon(const N a, const N b) {
 template <typename Coord, typename N> template <typename Point>
 N Earcut<Coord, N>::createNode(const Point &p) {
     N i = nodes.size();
-    nodes.emplace_back(Vertex {{ util::nth<0, Point>::get(p), util::nth<1, Point>::get(p) }});
+    nodes.emplace_back(Vertex {{ Coord(util::nth<0, Point>::get(p)),
+                                 Coord(util::nth<1, Point>::get(p)) }});
     return i;
 
 }

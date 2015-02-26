@@ -16,6 +16,10 @@ public:
         earcut(polygon);
     }
 
+    auto triangles() const -> const typename mapbox::Earcut<Coord>::Triangles & {
+        return earcut.triangles;
+    }
+
 private:
     mapbox::Earcut<Coord> earcut;
     const Polygon &polygon;

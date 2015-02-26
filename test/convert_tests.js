@@ -62,23 +62,8 @@ fs.readdirSync(base).filter(function(name) {
 
     hpp += 'extern const ' + className + ' ' + id + ';\n';
 
-    if (integer) {
-        integerPolygons += '    { "' + id + '", ' + id + ' },\n';
-    } else {
-        doublePolygons += '    { "' + id + '", ' + id + ' },\n';
-    }
-
     fs.writeFileSync('test/fixtures/' + id + '.cpp', cpp);
 });
-
-hpp += '\n';
-hpp += 'static const std::map<std::string, const IntegerPolygon &> integerPolygons = {\n';
-hpp += integerPolygons;
-hpp += '};\n\n';
-hpp += 'static const std::map<std::string, const DoublePolygon &> doublePolygons = {\n';
-hpp += doublePolygons;
-hpp += '};\n';
-
 
 hpp += '\n';
 hpp += '}\n';

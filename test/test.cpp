@@ -1,4 +1,5 @@
-#include <earcut.hpp>
+#include "comparison/earcut.hpp"
+#include "comparison/libtess2.hpp"
 #include "tap.hpp"
 
 #include "fixtures/geometries.hpp"
@@ -50,46 +51,55 @@ std::string formatPercent(double num) {
     return std::to_string(std::round(1e8 * num) / 1e6) + "%";
 }
 
-template <typename Coord, typename T>
-void areaTest(const T &polygons, const std::string &name, double expectedDeviation = 0.000001) {
+template <typename Coord, typename Polygon>
+void areaTest(const char *name, const Polygon &polygon, double expectedDeviation = 0.000001) {
     Tap::Test t(name);
 
-    const auto it = polygons.find(name);
-    if (it == polygons.end()) {
-        return t.fail(std::string { "Cannot find polygon with name " } + name);
+    { // Earcut
+        EarcutTesselator<Coord, Polygon> earcut(polygon);
+        earcut.run();
+
+        const auto expectedArea = polygonArea(polygon);
+        const auto area = trianglesArea(earcut.triangles());
+        const double deviation =
+            (expectedArea == 0 && area == 0) ? 0 : std::abs(area - expectedArea) / expectedArea;
+
+        t.ok(deviation < expectedDeviation, std::string{ "deviation " } + formatPercent(deviation) +
+                                                " is less than " +
+                                                formatPercent(expectedDeviation));
     }
-    const auto &data = it->second;
-    mapbox::Earcut<Coord> earcut;
-    earcut(data);
 
-    const auto expectedArea = polygonArea(data);
-    const auto area = trianglesArea(earcut.triangles);
+    { // Libtess2
+        Libtess2Tesselator<Coord, Polygon> earcut(polygon);
+        earcut.run();
 
-    const double deviation = (expectedArea == 0 && area == 0)
-                                 ? 0
-                                 : std::abs(area - expectedArea) / expectedArea;
+        const auto expectedArea = polygonArea(polygon);
+        const auto area = trianglesArea(earcut.triangles());
+        const double deviation =
+            (expectedArea == 0 && area == 0) ? 0 : std::abs(area - expectedArea) / expectedArea;
 
-    t.ok(deviation < expectedDeviation,
-        std::string { "deviation " } + formatPercent(deviation) + " is less than " + formatPercent(expectedDeviation));
-
+        t.ok(deviation < expectedDeviation, std::string{ "deviation " } + formatPercent(deviation) +
+                                                " is less than " +
+                                                formatPercent(expectedDeviation));
+    }
     t.end();
 }
 
 int main() {
     Tap tap;
 
-    areaTest<int>(mapbox::fixtures::integerPolygons, "bad_hole", 0.0420);
-    areaTest<int>(mapbox::fixtures::integerPolygons, "building");
-    areaTest<int>(mapbox::fixtures::integerPolygons, "degenerate");
-    areaTest<double>(mapbox::fixtures::doublePolygons, "dude");
-    areaTest<int>(mapbox::fixtures::integerPolygons, "empty_square");
-    areaTest<int>(mapbox::fixtures::integerPolygons, "water_huge", 0.0015);
-    areaTest<int>(mapbox::fixtures::integerPolygons, "water_huge2", 0.0020);
-    areaTest<int>(mapbox::fixtures::integerPolygons, "water", 0.0019);
-    areaTest<int>(mapbox::fixtures::integerPolygons, "water2");
-    areaTest<int>(mapbox::fixtures::integerPolygons, "water3");
-    areaTest<int>(mapbox::fixtures::integerPolygons, "water3b");
-    areaTest<int>(mapbox::fixtures::integerPolygons, "water4");
+    areaTest<int>("bad_hole", mapbox::fixtures::bad_hole, 0.0420);
+    areaTest<int>("building", mapbox::fixtures::building);
+    areaTest<int>("degenerate", mapbox::fixtures::degenerate);
+    areaTest<double>("dude", mapbox::fixtures::dude);
+    areaTest<int>("empty_square", mapbox::fixtures::empty_square);
+    areaTest<int>("water_huge", mapbox::fixtures::water_huge, 0.0015);
+    areaTest<int>("water_huge2", mapbox::fixtures::water_huge2, 0.0020);
+    areaTest<int>("water", mapbox::fixtures::water, 0.0019);
+    areaTest<int>("water2", mapbox::fixtures::water2);
+    areaTest<int>("water3", mapbox::fixtures::water3);
+    areaTest<int>("water3b", mapbox::fixtures::water3b);
+    areaTest<int>("water4", mapbox::fixtures::water4);
 
     return 0;
 }

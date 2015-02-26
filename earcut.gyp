@@ -44,21 +44,49 @@
       ],
     },
 
+    { 'target_name': 'libtess2',
+      'type': 'static_library',
+      'sources': [
+        '<!@(find test/comparison/libtess2 -name "*.c" -o -name "*.h")',
+      ],
+    },
+
     { 'target_name': 'test',
       'type': 'executable',
-      'dependencies': [ 'fixtures' ],
+      'dependencies': [ 'fixtures', 'libtess2' ],
       'include_dirs': [
         'include',
       ],
       'sources': [
         'test/test.cpp',
         'test/tap.cpp',
+        'test/comparison/earcut.hpp',
+        'test/comparison/libtess2.hpp',
+      ],
+    },
+
+    { 'target_name': 'viz',
+      'type': 'executable',
+      'dependencies': [ 'fixtures', 'libtess2' ],
+      'include_dirs': [
+        'include',
+      ],
+      'libraries': [ '<@(glfw3_static_libs)' ],
+      'xcode_settings': {
+        'OTHER_CPLUSPLUSFLAGS': [ '<@(glfw3_cflags)' ],
+        'OTHER_LDFLAGS': [ '<@(glfw3_ldflags)' ],
+      },
+      'cflags_cc': [ '<@(glfw3_cflags)' ],
+      'sources': [
+        'test/viz.cpp',
+        'test/comparison/earcut.hpp',
+        'test/comparison/libtess2.hpp',
       ],
     },
 
     { 'target_name': 'bench',
       'type': 'executable',
-      'dependencies': [ 'fixtures' ],
+      'dependencies': [ 'fixtures', 'libtess2' ],
       'include_dirs': [
         'include',
       ],
@@ -66,7 +94,6 @@
         'test/bench.cpp',
         'test/comparison/earcut.hpp',
         'test/comparison/libtess2.hpp',
-        '<!@(find test/comparison/libtess2 -name "*.c" -o -name "*.h")',
       ],
     },
   ],
