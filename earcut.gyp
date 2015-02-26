@@ -5,7 +5,7 @@
     'cflags_cc': [ '-std=c++11', '-Wall', '-Wextra', '-Wshadow', '-fno-rtti', '-fexceptions' ],
     'xcode_settings': {
       'CLANG_CXX_LANGUAGE_STANDARD':'c++11',
-      'CLANG_C_LANGUAGE_STANDARD':'c99',
+      'GCC_C_LANGUAGE_STANDARD':'c99',
       'MACOSX_DEPLOYMENT_TARGET': '10.7',
       'CLANG_CXX_LIBRARY': 'libc++',
       'OTHER_CPLUSPLUSFLAGS': [ '-Wall', '-Wextra', '-Wshadow', '-fno-rtti', '-fexceptions' ],
