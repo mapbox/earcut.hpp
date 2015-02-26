@@ -58,6 +58,7 @@
         'include',
       ],
       'sources': [
+        'include/earcut.hpp',
         'test/test.cpp',
         'test/tap.cpp',
         'test/comparison/earcut.hpp',
@@ -78,6 +79,7 @@
       },
       'cflags_cc': [ '<@(glfw3_cflags)' ],
       'sources': [
+        'include/earcut.hpp',
         'test/viz.cpp',
         'test/comparison/earcut.hpp',
         'test/comparison/libtess2.hpp',
@@ -91,6 +93,7 @@
         'include',
       ],
       'sources': [
+        'include/earcut.hpp',
         'test/bench.cpp',
         'test/comparison/earcut.hpp',
         'test/comparison/libtess2.hpp',
