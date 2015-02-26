@@ -2,11 +2,14 @@
   'target_defaults': {
     'default_configuration': 'Release',
     'cflags_cc': [ '-std=c++11', '-Wall', '-Wextra', '-Wshadow', '-fno-rtti', '-fexceptions' ],
+    'cflags_cc': [ '-std=c99', '-Wall', '-Wextra', '-Wshadow' ],
     'xcode_settings': {
       'CLANG_CXX_LANGUAGE_STANDARD':'c++11',
+      'CLANG_C_LANGUAGE_STANDARD':'c99',
       'MACOSX_DEPLOYMENT_TARGET': '10.7',
       'CLANG_CXX_LIBRARY': 'libc++',
       'OTHER_CPLUSPLUSFLAGS': [ '-Wall', '-Wextra', '-Wshadow', '-fno-rtti', '-fexceptions' ],
+      'OTHER_CFLAGS': [ '-Wall', '-Wextra', '-Wshadow' ],
     },
     'configurations': {
       'Debug': {
@@ -61,6 +64,9 @@
       ],
       'sources': [
         'test/bench.cpp',
+        'test/comparison/earcut.hpp',
+        'test/comparison/libtess2.hpp',
+        '<!@(find test/comparison/libtess2 -name "*.c" -o -name "*.h")',
       ],
     },
   ],

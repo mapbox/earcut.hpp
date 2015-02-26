@@ -1,6 +1,8 @@
 BUILDTYPE ?= Release
 
+.PHONY: all
 all: test
+	@make -C build
 
 build/Makefile:
 	@deps/run_gyp earcut.gyp --depth=. -Goutput_dir=. --generator-output=./build -f make
