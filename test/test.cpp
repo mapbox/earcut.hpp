@@ -52,35 +52,35 @@ std::string formatPercent(double num) {
 }
 
 template <typename Coord, typename Polygon>
-void areaTest(const char *name, const Polygon &polygon, double expectedDeviation = 0.000001) {
+void areaTest(const char *name, const Polygon &polygon, double earcutDeviation = 0.000001, double libtess2Deviation = 0.000001) {
     Tap::Test t(name);
 
-    { // Earcut
-        EarcutTesselator<Coord, Polygon> earcut(polygon);
-        earcut.run();
+    const auto expectedArea = polygonArea(polygon);
 
-        const auto expectedArea = polygonArea(polygon);
-        const auto area = trianglesArea(earcut.triangles());
+    { // Earcut
+        EarcutTesselator<Coord, Polygon> tesselator(polygon);
+        tesselator.run();
+
+        const auto area = trianglesArea(tesselator.triangles());
         const double deviation =
             (expectedArea == 0 && area == 0) ? 0 : std::abs(area - expectedArea) / expectedArea;
 
-        t.ok(deviation < expectedDeviation, std::string{ "deviation " } + formatPercent(deviation) +
+        t.ok(deviation <= earcutDeviation, std::string{ "earcut deviation " } + formatPercent(deviation) +
                                                 " is less than " +
-                                                formatPercent(expectedDeviation));
+                                                formatPercent(earcutDeviation));
     }
 
     { // Libtess2
-        Libtess2Tesselator<Coord, Polygon> earcut(polygon);
-        earcut.run();
+        Libtess2Tesselator<Coord, Polygon> tesselator(polygon);
+        tesselator.run();
 
-        const auto expectedArea = polygonArea(polygon);
-        const auto area = trianglesArea(earcut.triangles());
+        const auto area = trianglesArea(tesselator.triangles());
         const double deviation =
             (expectedArea == 0 && area == 0) ? 0 : std::abs(area - expectedArea) / expectedArea;
 
-        t.ok(deviation < expectedDeviation, std::string{ "deviation " } + formatPercent(deviation) +
+        t.ok(deviation <= libtess2Deviation, std::string{ "libtess2 deviation " } + formatPercent(deviation) +
                                                 " is less than " +
-                                                formatPercent(expectedDeviation));
+                                                formatPercent(libtess2Deviation));
     }
     t.end();
 }
@@ -88,14 +88,15 @@ void areaTest(const char *name, const Polygon &polygon, double expectedDeviation
 int main() {
     Tap tap;
 
-    areaTest<int>("bad_hole", mapbox::fixtures::bad_hole, 0.0420);
+    areaTest<int>("bad_hole", mapbox::fixtures::bad_hole, 0.042, 0.0022);
     areaTest<int>("building", mapbox::fixtures::building);
     areaTest<int>("degenerate", mapbox::fixtures::degenerate);
     areaTest<double>("dude", mapbox::fixtures::dude);
-    areaTest<int>("empty_square", mapbox::fixtures::empty_square);
-    areaTest<int>("water_huge", mapbox::fixtures::water_huge, 0.0015);
-    areaTest<int>("water_huge2", mapbox::fixtures::water_huge2, 0.0020);
-    areaTest<int>("water", mapbox::fixtures::water, 0.0019);
+    // allow libtess2 failure on this by providing infinity.
+    areaTest<int>("empty_square", mapbox::fixtures::empty_square, 0, std::numeric_limits<double>::infinity());
+    areaTest<int>("water_huge", mapbox::fixtures::water_huge, 0.0015, 0.0002);
+    areaTest<int>("water_huge2", mapbox::fixtures::water_huge2, 0.002, 0.00015);
+    areaTest<int>("water", mapbox::fixtures::water, 0.0019, 0.00002);
     areaTest<int>("water2", mapbox::fixtures::water2);
     areaTest<int>("water3", mapbox::fixtures::water3);
     areaTest<int>("water3b", mapbox::fixtures::water3b);
