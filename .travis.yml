@@ -20,5 +20,5 @@ before_script:
 - make
 
 script:
-- build/${BUILDTYPE}/test
-- build/${BUILDTYPE}/bench
+- make run-test
+- make run-bench
