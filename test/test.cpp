@@ -17,11 +17,15 @@ double triangleArea(const Point &a, const Point &b, const Point &c) {
            2;
 }
 
-template <typename Triangles>
-double trianglesArea(const Triangles &triangles) {
+template <typename Vertices, typename Indices>
+double trianglesArea(const Vertices &vertices, const Indices &indices) {
     double area = 0;
-    for (size_t i = 0; i < triangles.size(); i += 3) {
-        area += triangleArea(triangles[i], triangles[i + 1], triangles[i + 2]);
+    for (size_t i = 0; i < indices.size(); i += 3) {
+        area += triangleArea(
+            vertices[indices[i]],
+            vertices[indices[i + 1]],
+            vertices[indices[i + 2]]
+        );
     }
     return area;
 }
@@ -61,7 +65,10 @@ void areaTest(const char *name, const Polygon &polygon, double earcutDeviation =
         EarcutTesselator<Coord, Polygon> tesselator(polygon);
         tesselator.run();
 
-        const auto area = trianglesArea(tesselator.triangles());
+        const auto &vertices = tesselator.vertices();
+        const auto &indices = tesselator.indices();
+
+        const auto area = trianglesArea(vertices, indices);
         const double deviation =
             (expectedArea == 0 && area == 0) ? 0 : std::abs(area - expectedArea) / expectedArea;
 
@@ -74,7 +81,10 @@ void areaTest(const char *name, const Polygon &polygon, double earcutDeviation =
         Libtess2Tesselator<Coord, Polygon> tesselator(polygon);
         tesselator.run();
 
-        const auto area = trianglesArea(tesselator.triangles());
+        const auto &vertices = tesselator.vertices();
+        const auto &indices = tesselator.indices();
+
+        const auto area = trianglesArea(vertices, indices);
         const double deviation =
             (expectedArea == 0 && area == 0) ? 0 : std::abs(area - expectedArea) / expectedArea;
 

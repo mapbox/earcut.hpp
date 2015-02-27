@@ -9,4 +9,4 @@ It's based on ideas from [FIST: Fast Industrial-Strength Triangulation of Polygo
 
 ## Status
 
-This is currently based on [rev eba6f9c](https://github.com/mapbox/earcut/tree/eba6f9c52fa72f0447fe0c4833a87dfc7c8d3755).
+This is currently based on [rev f452299](https://github.com/mapbox/earcut/tree/f452299f2d94662e0c00be921da4dd988fba4233).

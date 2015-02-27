@@ -1,20 +1,29 @@
 BUILDTYPE ?= Release
 
 .PHONY: all
-all: build/Makefile
-	make -C build
+all: build/test/Makefile
+	make -C build/test
 
-build-%: build/Makefile
-	make -C build $*
+build-viz: build/viz/Makefile
+	make -C build/viz viz
+
+build-%:
+	make -C build/test $*
+
+run-viz: build-viz
+	build/viz/$(BUILDTYPE)/viz
 
 run-%: build-%
-	build/$(BUILDTYPE)/$*
+	build/test/$(BUILDTYPE)/$*
 
 config.gypi:
 	./configure
 
-build/Makefile: config.gypi
-	deps/run_gyp earcut.gyp -Iconfig.gypi --depth=. -Goutput_dir=. --generator-output=./build -f make
+build/test/Makefile:
+	deps/run_gyp earcut.gyp --depth=. -Goutput_dir=. --generator-output=./build/test -f make
+
+build/viz/Makefile: config.gypi
+	deps/run_gyp test/viz.gyp -Iconfig.gypi --depth=. -Goutput_dir=. --generator-output=./build/viz -f make
 
 .PHONY: xcode
 xcode: config.gypi
@@ -23,5 +32,5 @@ xcode: config.gypi
 
 .PHONY: clean
 clean:
-	-rm config.gypi
+	-rm -f config.gypi
 	-rm -rf build

@@ -26,12 +26,13 @@ const static int totalTesselators = 2;
 const static std::array<std::string, totalTesselators> tesselatorNames = {{ "earcut", "libtess2" }};
 
 struct Shape {
-    Shape(std::vector<std::array<int, 2>> triangles_) : triangles(std::move(triangles_)) {
+    Shape(std::vector<std::array<int, 2>> vertices_, std::vector<uint32_t> indices_)
+        : vertices(std::move(vertices_)), indices(std::move(indices_)) {
         auto minX = std::numeric_limits<int>::max();
         auto maxX = std::numeric_limits<int>::min();
         auto minY = std::numeric_limits<int>::max();
         auto maxY = std::numeric_limits<int>::min();
-        for (const auto &pt : triangles) {
+        for (const auto &pt : vertices) {
             if (pt[0] < minX) minX = pt[0];
             if (pt[1] < minY) minY = pt[1];
             if (pt[0] > maxX) maxX = pt[0];
@@ -45,7 +46,8 @@ struct Shape {
         ext = 1.10 * std::max(dimX, dimY) / 2;
     }
 
-    const std::vector<std::array<int, 2>> triangles;
+    const std::vector<std::array<int, 2>> vertices;
+    const std::vector<uint32_t> indices;
     int midX, midY, ext;
 };
 
@@ -54,14 +56,14 @@ auto buildPolygon(const Polygon &polygon) -> const Shape {
     if (tesselator == 0) {
         EarcutTesselator<int, Polygon> tess(polygon);
         tess.run();
-        return Shape(std::move(tess.triangles()));
+        return Shape(std::move(tess.vertices()), std::move(tess.indices()));
     } else if (tesselator == 1) {
         Libtess2Tesselator<int, Polygon> tess(polygon);
         tess.run();
-        return Shape(std::move(tess.triangles()));
+        return Shape(std::move(tess.vertices()), std::move(tess.indices()));
     }
     assert(false);
-    return Shape(std::vector<std::array<int, 2>>());
+    return Shape(std::vector<std::array<int, 2>>(), std::vector<uint32_t>());
 }
 
 template <typename Polygon>
@@ -78,12 +80,15 @@ void drawPolygon(const char *name, const Polygon &polygon) {
 
     glClear(GL_COLOR_BUFFER_BIT);
 
+    const auto &v = shape.vertices;
+    const auto &x = shape.indices;
+
     // Draw triangle fill
     if (drawFill) {
         glBegin(GL_TRIANGLES);
         glColor3f(0.3f, 0.3f, 0.3f);
-        for (const auto &pt : shape.triangles) {
-            glVertex2f(pt[0], pt[1]);
+        for (const auto pt : x) {
+            glVertex2f(v[pt][0], v[pt][1]);
         }
         glEnd();
     }
@@ -93,13 +98,13 @@ void drawPolygon(const char *name, const Polygon &polygon) {
         glLineWidth(float(fbWidth) / width);
         glBegin(GL_LINES);
         glColor3f(1, 0, 0);
-        for (size_t i = 0; i < shape.triangles.size(); i += 3) {
-            glVertex2f(shape.triangles[i][0], shape.triangles[i][1]);
-            glVertex2f(shape.triangles[i + 1][0], shape.triangles[i + 1][1]);
-            glVertex2f(shape.triangles[i + 1][0], shape.triangles[i + 1][1]);
-            glVertex2f(shape.triangles[i + 2][0], shape.triangles[i + 2][1]);
-            glVertex2f(shape.triangles[i + 2][0], shape.triangles[i + 2][1]);
-            glVertex2f(shape.triangles[i][0], shape.triangles[i][1]);
+        for (size_t i = 0; i < x.size(); i += 3) {
+            glVertex2f(v[x[i]][0], v[x[i]][1]);
+            glVertex2f(v[x[i + 1]][0], v[x[i + 1]][1]);
+            glVertex2f(v[x[i + 1]][0], v[x[i + 1]][1]);
+            glVertex2f(v[x[i + 2]][0], v[x[i + 2]][1]);
+            glVertex2f(v[x[i + 2]][0], v[x[i + 2]][1]);
+            glVertex2f(v[x[i]][0], v[x[i]][1]);
         }
         glEnd();
     }

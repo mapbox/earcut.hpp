@@ -9,6 +9,8 @@ template <typename Coord, typename Polygon>
 class Libtess2Tesselator {
     using Vertex = std::array<Coord, 2>;
     using Triangles = std::vector<Vertex>;
+    using Vertices = std::vector<Vertex>;
+    using Indices = std::vector<uint32_t>;
 
 public:
     Libtess2Tesselator(const Polygon &polygon)
@@ -26,6 +28,8 @@ public:
     }
 
     void run() {
+        dirty = true;
+
         // Add polygon data
         for (const auto &tessRing : tessPolygon) {
             tessAddContour(tess.get(), vertexSize, tessRing.data(), stride, (int)tessRing.size() / vertexSize);
@@ -37,27 +41,38 @@ public:
         }
     }
 
-    auto triangles() -> const Triangles & {
-        triangleData.clear();
+    auto indices() -> const Indices & {
+        if (dirty) {
+            indexData.clear();
+            const auto elements = tessGetElements(tess.get());
+            const auto elementCount = tessGetElementCount(tess.get());
 
-        const auto vertices = tessGetVertices(tess.get());
-        const auto elements = tessGetElements(tess.get());
-        const auto elementCount = tessGetElementCount(tess.get());
-
-        for (int i = 0; i < elementCount; i++) {
-            const TESSindex *group = &elements[i * verticesPerTriangle];
-            if (group[0] != TESS_UNDEF && group[1] != TESS_UNDEF && group[2] != TESS_UNDEF) {
-                const auto a = group[0] * vertexSize;
-                const auto b = group[1] * vertexSize;
-                const auto c = group[2] * vertexSize;
-
-                triangleData.emplace_back(Vertex{{ Coord(vertices[a]), Coord(vertices[a + 1]) }});
-                triangleData.emplace_back(Vertex{{ Coord(vertices[b]), Coord(vertices[b + 1]) }});
-                triangleData.emplace_back(Vertex{{ Coord(vertices[c]), Coord(vertices[c + 1]) }});
+             for (int i = 0; i < elementCount; i++) {
+                const TESSindex *group = &elements[i * verticesPerTriangle];
+                if (group[0] != TESS_UNDEF && group[1] != TESS_UNDEF && group[2] != TESS_UNDEF) {
+                    indexData.push_back(group[0]);
+                    indexData.push_back(group[1]);
+                    indexData.push_back(group[2]);
+                }
             }
         }
 
-        return triangleData;
+        return indexData;
+    }
+
+    auto vertices() -> const Vertices & {
+        if (dirty) {
+            vertexData.clear();
+
+            const auto vertices = tessGetVertices(tess.get());
+            const auto vertexCount = tessGetVertexCount(tess.get());
+            for (int i = 0; i < vertexCount; i++) {
+                vertexData.emplace_back(Vertex{{ Coord(vertices[i * vertexSize]),
+                                                 Coord(vertices[i * vertexSize + 1]) }});
+            }
+        }
+
+        return vertexData;
     }
 
 private:
@@ -72,5 +87,7 @@ private:
     std::vector<std::vector<TESSreal>> tessPolygon;
     const std::unique_ptr<TESStesselator, tessDeleter> tess;
 
-    Triangles triangleData;
+    bool dirty = true;
+    Vertices vertexData;
+    Indices indexData;
 };
