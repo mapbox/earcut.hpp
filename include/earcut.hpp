@@ -379,7 +379,7 @@ Earcut<Coord, N>::cureLocalIntersections(Node* start) {
         Node* b = node->next->next;
 
         // a self-intersection where edge (v[i-1],v[i]) intersects (v[i+1],v[i+2])
-        if (a->v != b->v && intersects(a->v, node->v, node->next->v, b->v) &&
+        if (a->i != b->i && intersects(a->v, node->v, node->next->v, b->v) &&
                  locallyInside(a, b) && locallyInside(b, a) &&
                  orient(a->v, node->v, b->v) && orient(a->v, node->next->v, b->v)) {
             indices.emplace_back(a->i);
