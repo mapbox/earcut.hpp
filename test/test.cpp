@@ -56,7 +56,7 @@ std::string formatPercent(double num) {
 }
 
 template <typename Coord, typename Polygon>
-void areaTest(const char *name, const Polygon &polygon, double earcutDeviation = 0.000001, double libtess2Deviation = 0.000001) {
+void areaTest(const char *name, const Polygon &polygon, double earcutDeviation = 1e-14, double libtess2Deviation = 0.000001) {
     Tap::Test t(name);
 
     const auto expectedArea = polygonArea(polygon);
