@@ -778,7 +778,6 @@ N Earcut<Coord, N>::splitPolygon(const N a, const N b) {
     n(b).prev = a;
 
     n(a2).next = an;
-    n(a2).next = an;
     n(an).prev = a2;
 
     n(b2).next = a2;
