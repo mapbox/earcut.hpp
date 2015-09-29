@@ -668,7 +668,8 @@ Earcut<Coord, N>::getLeftmost(Node* start) {
 // check if a diagonal between two polygon nodes is valid (lies in polygon interior)
 template <typename Coord, typename N>
 bool Earcut<Coord, N>::isValidDiagonal(Node* a, Node* b) {
-    return !intersectsPolygon(a, a, b) &&
+    return a->next->i != b->i && a->prev->i != b->i &&
+           !intersectsPolygon(a, a, b) &&
            locallyInside(a, b) && locallyInside(b, a) &&
            middleInside(a, a->v, b->v);
 }
