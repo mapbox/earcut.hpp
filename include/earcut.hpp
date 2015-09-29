@@ -406,7 +406,7 @@ void Earcut<Coord, N>::splitEarcut(Node* start) {
     do {
         Node* b = a->next->next;
         while (b != a->prev) {
-            if (isValidDiagonal(a, b)) {
+            if (a->i != b->i && isValidDiagonal(a, b)) {
                 // split the polygon in two by the diagonal
                 auto c = splitPolygon(a, b);
 
