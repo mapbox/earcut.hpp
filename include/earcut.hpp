@@ -49,9 +49,6 @@ private:
         N prevZ = 0, nextZ = 0;
     };
 
-
-private:
-    void discardUnusedVertices();
     template <typename Ring> N linkedList(const Ring &points, const bool clockwise);
     N filterPoints(N start, N end = 0);
     void earcutLinked(N ear, int pass = 0);
@@ -85,8 +82,6 @@ private:
 
     std::vector<Node> nodes;
     inline Node &n(N i) { return nodes[i]; }
-
-    std::vector<N> used;
 };
 
 template <typename Coord, typename N> template <typename Polygon>
@@ -95,12 +90,10 @@ void Earcut<Coord, N>::operator()(const Polygon &points) {
     indices.clear();
     vertices.clear();
     nodes.clear();
-    used.clear();
 
     // null element
     vertices.emplace_back();
     nodes.emplace_back();
-    used.push_back(0);
 
     auto outerNode = filterPoints(linkedList(points[0], true));
     if (!outerNode) return;
@@ -138,31 +131,6 @@ void Earcut<Coord, N>::operator()(const Polygon &points) {
     if (points.size() > 1) outerNode = eliminateHoles(points, outerNode);
 
     earcutLinked(outerNode);
-
-    discardUnusedVertices();
-}
-
-// removes unused vertices from the final set of vertices
-template <typename Coord, typename N>
-void Earcut<Coord, N>::discardUnusedVertices() {
-    size_t dst = 0;
-    for (size_t src = 0; src < vertices.size(); ++src) {
-        if (used[src] > 0) {
-            // This vertex is used. Move to the next free spot.
-            vertices[dst] = std::move(vertices[src]);
-            used[src] = dst++;
-        } else {
-            used[src] = dst;
-        }
-    }
-
-    // remove trailing elements
-    vertices.resize(dst);
-
-    // change the triangle indices to the new compressed scheme
-    std::transform(indices.begin(), indices.end(), indices.begin(), [&](N n) {
-        return used[n];
-    });
 }
 
 // create a circular doubly linked list from polygon points in the specified winding order
@@ -254,7 +222,6 @@ void Earcut<Coord, N>::earcutLinked(N ear, int pass) {
             indices.emplace_back(prev);
             indices.emplace_back(ear);
             indices.emplace_back(next);
-            used[prev] = used[ear] = used[next] = 1;
 
             // remove ear node
             n(next).prev = prev;
@@ -413,7 +380,6 @@ N Earcut<Coord, N>::cureLocalIntersections(N start) {
             indices.emplace_back(a);
             indices.emplace_back(node);
             indices.emplace_back(b);
-            used[a] = used[node] = used[b] = 1;
 
             // remove two nodes involved
             n(a).next = b;
@@ -793,11 +759,9 @@ template <typename Coord, typename N> template <typename Point>
 N Earcut<Coord, N>::createNode(const Point &p) {
     N i = nodes.size();
     assert(vertices.size() == i);
-    assert(used.size() == i);
     nodes.emplace_back();
     vertices.emplace_back(Vertex {{ Coord(util::nth<0, Point>::get(p)),
                                     Coord(util::nth<1, Point>::get(p)) }});
-    used.push_back(false);
     return i;
 
 }
