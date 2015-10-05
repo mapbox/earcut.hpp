@@ -39,13 +39,14 @@ public:
 
 private:
     struct Node {
-        Node(N index) : i(index) {}
+        Node(N index, const Vertex& vertex) : i(index), v(vertex) {}
         Node(const Node&) = delete;
         Node& operator=(const Node&) = delete;
         Node(Node&&) = delete;
         Node& operator=(Node&&) = delete;
 
         const N i;
+        const Vertex v;
 
         // previous and next vertice nodes in a polygon ring
         Node* prev = nullptr;
@@ -73,12 +74,12 @@ private:
     int32_t zOrder(const double x_, const double y_);
     Node* getLeftmost(Node* start);
     bool isValidDiagonal(Node* a, Node* b);
-    int8_t orient(N p, N q, N r) const;
-    bool equals(N p1, N p2);
-    bool intersects(N p1, N q1, N p2, N q2);
-    bool intersectsPolygon(Node* start, N a, N b);
+    int8_t orient(const Vertex& p, const Vertex& q, const Vertex& r) const;
+    bool equals(const Vertex& p1, const Vertex& p2);
+    bool intersects(const Vertex& p1, const Vertex& q1, const Vertex& p2, const Vertex& q2);
+    bool intersectsPolygon(Node* start, Node* a, Node* b);
     bool locallyInside(Node* a, Node* b);
-    bool middleInside(Node* start, N a, N b);
+    bool middleInside(Node* start, const Vertex& a, const Vertex& b);
     Node* splitPolygon(Node* a, Node* b);
     template <typename Point> Node* insertNode(const Point& p, Node* last);
 
@@ -86,8 +87,6 @@ private:
     Coord minX, maxX;
     Coord minY, maxY;
     double size;
-
-    inline const Vertex& v(N i) const { return vertices[i]; }
 
     std::unique_ptr<boost::object_pool<Node>> nodes;
 };
@@ -115,11 +114,11 @@ void Earcut<Coord, N>::operator()(const Polygon& points) {
     hashing = threshold < 0;
     if (hashing) {
         Node* node = outerNode->next;
-        minX = maxX = v(node->i)[0];
-        minY = maxY = v(node->i)[1];
+        minX = maxX = node->v[0];
+        minY = maxY = node->v[1];
         do {
-            x = v(node->i)[0];
-            y = v(node->i)[1];
+            x = node->v[0];
+            y = node->v[1];
             if (x < minX) minX = x;
             if (y < minY) minY = y;
             if (x > maxX) maxX = x;
@@ -180,7 +179,7 @@ Earcut<Coord, N>::filterPoints(Node* start, Node* end) {
     do {
         again = false;
 
-        if (equals(node->i, node->next->i) || orient(node->prev->i, node->i, node->next->i) == 0) {
+        if (equals(node->v, node->next->v) || orient(node->prev->v, node->v, node->next->v) == 0) {
 
             // remove node
             node->prev->next = node->next;
@@ -266,12 +265,12 @@ void Earcut<Coord, N>::earcutLinked(Node* ear, int pass) {
 // check whether a polygon node forms a valid ear with adjacent nodes
 template <typename Coord, typename N>
 bool Earcut<Coord, N>::isEar(Node* ear) {
-    const auto a = ear->prev->i;
-    const auto b = ear->i;
-    const auto c = ear->next->i;
+    const auto a = ear->prev;
+    const auto b = ear;
+    const auto c = ear->next;
 
-    const auto ax = v(a)[0], bx = v(b)[0], cx = v(c)[0];
-    const auto ay = v(a)[1], by = v(b)[1], cy = v(c)[1];
+    const auto ax = a->v[0], bx = b->v[0], cx = c->v[0];
+    const auto ay = a->v[1], by = b->v[1], cy = c->v[1];
 
     const auto abd = ax * by - ay * bx;
     const auto acd = ax * cy - ay * cx;
@@ -288,6 +287,7 @@ bool Earcut<Coord, N>::isEar(Node* ear) {
     const auto bax = bx - ax;
 
     N i;
+    Vertex v;
     typename Vertex::value_type px;
     typename Vertex::value_type py;
     Coord s, t, k;
@@ -311,11 +311,12 @@ bool Earcut<Coord, N>::isEar(Node* ear) {
 
         while (node && node->z <= maxZ) {
             i = node->i;
+            v = node->v;
             node = node->nextZ;
-            if (i == a || i == c) continue;
+            if (i == a->i || i == c->i) continue;
 
-            px = v(i)[0];
-            py = v(i)[1];
+            px = v[0];
+            py = v[1];
 
             s = cay * px + acx * py - acd;
             if (s >= 0) {
@@ -332,11 +333,12 @@ bool Earcut<Coord, N>::isEar(Node* ear) {
 
         while (node && node->z >= minZ) {
             i = node->i;
+            v = node->v;
             node = node->prevZ;
-            if (i == a || i == c) continue;
+            if (i == a->i || i == c->i) continue;
 
-            px = v(i)[0];
-            py = v(i)[1];
+            px = v[0];
+            py = v[1];
 
             s = cay * px + acx * py - acd;
             if (s >= 0) {
@@ -354,10 +356,11 @@ bool Earcut<Coord, N>::isEar(Node* ear) {
 
         while (node != ear->prev) {
             i = node->i;
+            v = node->v;
             node = node->next;
 
-            px = v(i)[0];
-            py = v(i)[1];
+            px = v[0];
+            py = v[1];
 
             s = cay * px + acx * py - acd;
             if (s >= 0) {
@@ -383,7 +386,7 @@ Earcut<Coord, N>::cureLocalIntersections(Node* start) {
         Node* b = node->next->next;
 
         // a self-intersection where edge (v[i-1],v[i]) intersects (v[i+1],v[i+2])
-        if (intersects(a->i, node->i, node->next->i, b->i) && locallyInside(a, b) && locallyInside(b, a)) {
+        if (intersects(a->v, node->v, node->next->v, b->v) && locallyInside(a, b) && locallyInside(b, a)) {
             indices.emplace_back(a->i);
             indices.emplace_back(node->i);
             indices.emplace_back(b->i);
@@ -446,7 +449,7 @@ Earcut<Coord, N>::eliminateHoles(const Polygon& points, Node* outerNode) {const 
         }
     }
     std::sort(queue.begin(), queue.end(), [this](const Node* a, const Node* b) {
-        return v(a->i)[0] < v(b->i)[0];
+        return a->v[0] < b->v[0];
     });
 
     // process holes from left to right
@@ -473,26 +476,25 @@ template <typename Coord, typename N>
 typename Earcut<Coord, N>::Node*
 Earcut<Coord, N>::findHoleBridge(Node* const holeNode, Node* const outerNode) {
     Node* node = outerNode;
-    N i = holeNode->i;
-    auto px = v(i)[0];
-    auto py = v(i)[1];
+    auto px = holeNode->v[0];
+    auto py = holeNode->v[1];
     auto qMax = -std::numeric_limits<double>::infinity();
     Node* mNode = nullptr;
 
     // find a segment intersected by a ray from the hole's leftmost Vertex to the left;
     // segment's endpoint with lesser x will be potential connection Vertex
     do {
-        auto a = node->i;
-        auto b = node->next->i;
+        auto a = node;
+        auto b = node->next;
 
-        if (py <= v(a)[1] && py >= v(b)[1]) {
-          auto qx = double(v(a)[0]) +
-                    double(py - v(a)[1]) *
-                        double(v(b)[0] - v(a)[0]) /
-                        double(v(b)[1] - v(a)[1]);
+        if (py <= a->v[1] && py >= b->v[1]) {
+          auto qx = double(a->v[0]) +
+                    double(py - a->v[1]) *
+                        double(b->v[0] - a->v[0]) /
+                        double(b->v[1] - a->v[1]);
           if (qx <= px && qx > qMax) {
             qMax = qx;
-            mNode = v(a)[0] < v(b)[0] ? node : node->next;
+            mNode = a->v[0] < b->v[0] ? node : node->next;
           }
         }
         node = node->next;
@@ -504,8 +506,8 @@ Earcut<Coord, N>::findHoleBridge(Node* const holeNode, Node* const outerNode) {
     // if there are no points found, we have a valid connection;
     // otherwise choose the Vertex of the minimum angle with the ray as connection Vertex
 
-    const double bx = v(mNode->i)[0];
-    const double by = v(mNode->i)[1];
+    const double bx = mNode->v[0];
+    const double by = mNode->v[1];
     const double pbd = px * by - py * bx;
     const double pcd = px * py - py * qMax;
     const double cpy = py - py;
@@ -528,8 +530,8 @@ Earcut<Coord, N>::findHoleBridge(Node* const holeNode, Node* const outerNode) {
 
     while (node != stop) {
 
-        mx = v(node->i)[0];
-        my = v(node->i)[1];
+        mx = node->v[0];
+        my = node->v[1];
         amx = px - mx;
 
         if (amx >= 0 && mx >= bx) {
@@ -559,7 +561,7 @@ void Earcut<Coord, N>::indexCurve(Node* start) {
     Node* node = start;
 
     do {
-        node->z = node->z ? node->z : zOrder(v(node->i)[0], v(node->i)[1]);
+        node->z = node->z ? node->z : zOrder(node->v[0], node->v[1]);
         node->prevZ = node->prev;
         node->nextZ = node->next;
         node = node->next;
@@ -665,7 +667,7 @@ Earcut<Coord, N>::getLeftmost(Node* start) {
     Node* node = start;
     Node* leftmost = start;
     do {
-        if (v(node->i)[0] < v(leftmost->i)[0]) leftmost = node;
+        if (node->v[0] < leftmost->v[0]) leftmost = node;
         node = node->next;
     } while (node != start);
 
@@ -675,41 +677,42 @@ Earcut<Coord, N>::getLeftmost(Node* start) {
 // check if a diagonal between two polygon nodes is valid (lies in polygon interior)
 template <typename Coord, typename N>
 bool Earcut<Coord, N>::isValidDiagonal(Node* a, Node* b) {
-    return !intersectsPolygon(a, a->i, b->i) &&
+    return !intersectsPolygon(a, a, b) &&
            locallyInside(a, b) && locallyInside(b, a) &&
-           middleInside(a, a->i, b->i);
+           middleInside(a, a->v, b->v);
 }
 
 // winding order of triangle formed by 3 given points
 template <typename Coord, typename N>
-int8_t Earcut<Coord, N>::orient(N p, N q, N r) const {
-    const auto o = (v(q)[1] - v(p)[1]) * (v(r)[0] - v(q)[0]) - (v(q)[0] - v(p)[0]) * (v(r)[1] - v(q)[1]);
+int8_t Earcut<Coord, N>::orient(const Vertex& p, const Vertex& q, const Vertex& r) const {
+    const auto o = (q[1] - p[1]) * (r[0] - q[0]) - (q[0] - p[0]) * (r[1] - q[1]);
     return o > 0 ? 1 :
            o < 0 ? -1 : 0;
 }
 
 // check if two points are equal
 template <typename Coord, typename N>
-bool Earcut<Coord, N>::equals(N p1, N p2) {
-    return v(p1)[0] == v(p2)[0] && v(p1)[1] == v(p2)[1];
+bool Earcut<Coord, N>::equals(const Vertex& p1, const Vertex& p2) {
+    return p1[0] == p2[0] && p1[1] == p2[1];
 }
 
 // check if two segments intersect
 template <typename Coord, typename N>
-bool Earcut<Coord, N>::intersects(N p1, N q1, N p2, N q2) {
+bool Earcut<Coord, N>::intersects(const Vertex& p1, const Vertex& q1, const Vertex& p2, const Vertex& q2) {
     return orient(p1, q1, p2) != orient(p1, q1, q2) &&
            orient(p2, q2, p1) != orient(p2, q2, q1);
 }
 
 // check if a polygon diagonal intersects any polygon segments
 template <typename Coord, typename N>
-bool Earcut<Coord, N>::intersectsPolygon(Node* start, N a, N b) {
+bool Earcut<Coord, N>::intersectsPolygon(Node* start, Node* a, Node* b) {
     Node* node = start;
     do {
-        auto p1 = node->i;
-        auto p2 = node->next->i;
-
-        if (p1 != a && p2 != a && p1 != b && p2 != b && intersects(p1, p2, a, b)) return true;
+        if (node->i != a->i &&
+            node->next->i != a->i &&
+            node->i != b->i &&
+            node->next->i != b->i &&
+            intersects(node->v, node->next->v, a->v, b->v)) return true;
 
         node = node->next;
     } while (node != start);
@@ -720,24 +723,24 @@ bool Earcut<Coord, N>::intersectsPolygon(Node* start, N a, N b) {
 // check if a polygon diagonal is locally inside the polygon
 template <typename Coord, typename N>
 bool Earcut<Coord, N>::locallyInside(Node* a, Node* b) {
-    return orient(a->prev->i, a->i, a->next->i) == -1 ?
-        orient(a->i, b->i, a->next->i) != -1 && orient(a->i, a->prev->i, b->i) != -1 :
-        orient(a->i, b->i, a->prev->i) == -1 || orient(a->i, a->next->i, b->i) == -1;
+    return orient(a->prev->v, a->v, a->next->v) == -1 ?
+        orient(a->v, b->v, a->next->v) != -1 && orient(a->v, a->prev->v, b->v) != -1 :
+        orient(a->v, b->v, a->prev->v) == -1 || orient(a->v, a->next->v, b->v) == -1;
 }
 
 // check if the middle Vertex of a polygon diagonal is inside the polygon
 template <typename Coord, typename N>
-bool Earcut<Coord, N>::middleInside(Node* start, N a, N b) {
+bool Earcut<Coord, N>::middleInside(Node* start, const Vertex& a, const Vertex& b) {
     Node* node = start;
     bool inside = false;
-    auto px = double(v(a)[0] + v(b)[0]) / 2;
-    auto py = double(v(a)[1] + v(b)[1]) / 2;
+    auto px = double(a[0] + b[0]) / 2;
+    auto py = double(a[1] + b[1]) / 2;
     do {
-        auto p1 = node->i;
-        auto p2 = node->next->i;
+        auto p1 = node->v;
+        auto p2 = node->next->v;
 
-        if (((v(p1)[1] > py) != (v(p2)[1] > py)) &&
-            (px < (v(p2)[0] - v(p1)[0]) * (py - v(p1)[1]) / (v(p2)[1] - v(p1)[1]) + v(p1)[0]))
+        if (((p1[1] > py) != (p2[1] > py)) &&
+            (px < (p2[0] - p1[0]) * (py - p1[1]) / (p2[1] - p1[1]) + p1[0]))
                 inside = !inside;
 
         node = node->next;
@@ -752,8 +755,8 @@ bool Earcut<Coord, N>::middleInside(Node* start, N a, N b) {
 template <typename Coord, typename N>
 typename Earcut<Coord, N>::Node*
 Earcut<Coord, N>::splitPolygon(Node* a, Node* b) {
-    const auto a2 = new (nodes->malloc()) Node(a->i);
-    const auto b2 = new (nodes->malloc()) Node(b->i);
+    const auto a2 = new (nodes->malloc()) Node(a->i, a->v);
+    const auto b2 = new (nodes->malloc()) Node(b->i, b->v);
     const auto an = a->next;
     const auto bp = b->prev;
 
@@ -776,10 +779,11 @@ Earcut<Coord, N>::splitPolygon(Node* a, Node* b) {
 template <typename Coord, typename N> template <typename Point>
 typename Earcut<Coord, N>::Node*
 Earcut<Coord, N>::insertNode(const Point& p, Node* last) {
-    vertices.emplace_back(Vertex {{ Coord(util::nth<0, Point>::get(p)),
-                                    Coord(util::nth<1, Point>::get(p)) }});
+    Vertex v({{ Coord(util::nth<0, Point>::get(p)),
+                Coord(util::nth<1, Point>::get(p)) }});
 
-    auto node = new (nodes->malloc()) Node(vertices.size() - 1);
+    vertices.emplace_back(v);
+    auto node = new (nodes->malloc()) Node(vertices.size() - 1, v);
 
     if (!last) {
         node->prev = node;
