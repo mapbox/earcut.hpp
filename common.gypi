@@ -1,15 +1,19 @@
 {
+  'includes': [
+    'config.gypi',
+  ],
+
   'target_defaults': {
     'default_configuration': 'Release',
-    'cflags': [ '-std=c99', '-Wall', '-Wextra', '-Wshadow' ],
-    'cflags_cc': [ '-std=c++11', '-Wall', '-Wextra', '-Wshadow', '-fno-rtti', '-fexceptions' ],
+    'cflags': [ '-std=c99', '-Wall', '-Wextra', '-Wshadow', '<@(boost_cflags)' ],
+    'cflags_cc': [ '-std=c++14', '-Wall', '-Wextra', '-Wshadow', '-fno-rtti', '-fexceptions', '<@(boost_cflags)' ],
     'xcode_settings': {
-      'CLANG_CXX_LANGUAGE_STANDARD':'c++11',
+      'CLANG_CXX_LANGUAGE_STANDARD':'c++14',
       'GCC_C_LANGUAGE_STANDARD':'c99',
       'MACOSX_DEPLOYMENT_TARGET': '10.7',
       'CLANG_CXX_LIBRARY': 'libc++',
-      'OTHER_CPLUSPLUSFLAGS': [ '-Wall', '-Wextra', '-Wshadow', '-fno-rtti', '-fexceptions' ],
-      'OTHER_CFLAGS': [ '-Wall', '-Wextra', '-Wshadow' ],
+      'OTHER_CPLUSPLUSFLAGS': [ '-Wall', '-Wextra', '-Wshadow', '-fno-rtti', '-fexceptions', '<@(boost_cflags)' ],
+      'OTHER_CFLAGS': [ '-Wall', '-Wextra', '-Wshadow', '<@(boost_cflags)' ],
     },
     'configurations': {
       'Debug': {

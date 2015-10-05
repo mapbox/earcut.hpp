@@ -19,15 +19,15 @@ run-%: build-%
 config.gypi:
 	./configure
 
-build/test/Makefile:
+build/test/Makefile: config.gypi
 	deps/run_gyp earcut.gyp --depth=. -Goutput_dir=. --generator-output=./build/test -f make
 
 build/viz/Makefile: config.gypi
-	deps/run_gyp test/viz.gyp -Iconfig.gypi --depth=. -Goutput_dir=. --generator-output=./build/viz -f make
+	deps/run_gyp test/viz.gyp --depth=. -Goutput_dir=. --generator-output=./build/viz -f make
 
 .PHONY: xcode
 xcode: config.gypi
-	deps/run_gyp earcut.gyp -Iconfig.gypi --depth=. -Goutput_dir=. --generator-output=./build -f xcode
+	deps/run_gyp earcut.gyp --depth=. -Goutput_dir=. --generator-output=./build -f xcode
 	open build/earcut.xcodeproj
 
 .PHONY: clean

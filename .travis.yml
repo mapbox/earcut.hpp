@@ -1,5 +1,7 @@
 language: cpp
 
+sudo: false
+
 compiler:
 - clang
 - gcc
@@ -8,15 +10,14 @@ env:
  - BUILDTYPE: Debug
  - BUILDTYPE: Release
 
-before_install:
-- sudo add-apt-repository --yes ppa:ubuntu-toolchain-r/test
-- sudo apt-get update -y
-
-install:
-- sudo apt-get -y install gcc-4.8 g++-4.8
+addons:
+  apt:
+    sources: [ 'ubuntu-toolchain-r-test', 'llvm-toolchain-precise-3.6' ]
+    packages: [ 'g++-4.9', 'gcc-4.9', 'clang-3.6' ]
 
 before_script:
-- if [[ ${CXX} == "g++" ]]; then export CXX="g++-4.8" CC="gcc-4.8" ; fi
+- if [[ ${CXX} == "g++" ]]; then export CXX="g++-4.9" CC="gcc-4.9" ; fi
+- if [[ ${CXX} == "clang++" ]]; then export CXX="clang++-3.6" CC="clang-3.6" ; fi
 - make
 
 script:
