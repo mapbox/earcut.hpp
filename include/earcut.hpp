@@ -31,8 +31,7 @@ public:
     using Indices = std::vector<N>;
     Indices indices;
 
-    using Vertices = std::vector<Vertex>;
-    Vertices vertices;
+    N vertices = 0;
 
     template <typename Polygon>
     void operator()(const Polygon& points);
@@ -81,7 +80,7 @@ private:
     bool locallyInside(Node* a, Node* b);
     bool middleInside(Node* start, const Vertex& a, const Vertex& b);
     Node* splitPolygon(Node* a, Node* b);
-    template <typename Point> Node* insertNode(const Point& p, Node* last);
+    template <typename Point> Node* insertNode(N i, const Point& p, Node* last);
 
     bool hashing;
     Coord minX, maxX;
@@ -95,7 +94,7 @@ template <typename Coord, typename N> template <typename Polygon>
 void Earcut<Coord, N>::operator()(const Polygon& points) {
     // reset
     indices.clear();
-    vertices.clear();
+    vertices = 0;
     nodes = std::make_unique<boost::object_pool<Node>>();
 
     auto outerNode = filterPoints(linkedList(points[0], true));
@@ -160,10 +159,12 @@ Earcut<Coord, N>::linkedList(const Ring& points,
 
     // link points into circular doubly-linked list in the specified winding order
     if (clockwise == (sum > 0)) {
-        for (i = 0; i < len; i++) last = insertNode(points[i], last);
+        for (i = 0; i < len; i++) last = insertNode(vertices + i, points[i], last);
     } else {
-        for (i = len - 1; i >= 0; i--) last = insertNode(points[i], last);
+        for (i = len - 1; i >= 0; i--) last = insertNode(vertices + i, points[i], last);
     }
+
+    vertices += len;
 
     return last;
 }
@@ -778,12 +779,11 @@ Earcut<Coord, N>::splitPolygon(Node* a, Node* b) {
 // create a node and util::optionally link it with previous one (in a circular doubly linked list)
 template <typename Coord, typename N> template <typename Point>
 typename Earcut<Coord, N>::Node*
-Earcut<Coord, N>::insertNode(const Point& p, Node* last) {
+Earcut<Coord, N>::insertNode(N i, const Point& p, Node* last) {
     Vertex v({{ Coord(util::nth<0, Point>::get(p)),
                 Coord(util::nth<1, Point>::get(p)) }});
 
-    vertices.emplace_back(v);
-    auto node = new (nodes->malloc()) Node(vertices.size() - 1, v);
+    auto node = new (nodes->malloc()) Node(i, v);
 
     if (!last) {
         node->prev = node;
