@@ -11,6 +11,10 @@ namespace fixtures {
 template <typename T> using Polygon = std::vector<std::vector<T>>;
 template <typename T> using Triangles = std::vector<T>;
 
+using ShortPoint = std::pair<short, short>;
+using ShortTriangles = Triangles<ShortPoint>;
+using ShortPolygon = Polygon<ShortPoint>;
+
 using IntegerPoint = std::pair<int, int>;
 using IntegerTriangles = Triangles<IntegerPoint>;
 using IntegerPolygon = Polygon<IntegerPoint>;
@@ -32,6 +36,7 @@ extern const IntegerPolygon water2;
 extern const IntegerPolygon water3;
 extern const IntegerPolygon water3b;
 extern const IntegerPolygon water4;
+extern const ShortPolygon park;
 
 }
 }

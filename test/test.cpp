@@ -111,6 +111,7 @@ int main() {
     areaTest<int>("water3", mapbox::fixtures::water3);
     areaTest<int>("water3b", mapbox::fixtures::water3b);
     areaTest<int>("water4", mapbox::fixtures::water4);
+    areaTest<short>("park", mapbox::fixtures::park);
 
     return 0;
 }

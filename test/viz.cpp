@@ -19,19 +19,20 @@ static bool drawMesh = true;
 static bool dirty = true;
 
 static int shapeIndex = 0;
-const static int totalShapes = 12;
+const static int totalShapes = 13;
 
 static int tesselator = 0;
 const static int totalTesselators = 2;
 const static std::array<std::string, totalTesselators> tesselatorNames = {{ "earcut", "libtess2" }};
 
+template <typename T>
 struct Shape {
-    Shape(std::vector<std::array<int, 2>> vertices_, std::vector<uint32_t> indices_)
+    Shape(std::vector<std::array<T, 2>> vertices_, std::vector<uint32_t> indices_)
         : vertices(std::move(vertices_)), indices(std::move(indices_)) {
-        auto minX = std::numeric_limits<int>::max();
-        auto maxX = std::numeric_limits<int>::min();
-        auto minY = std::numeric_limits<int>::max();
-        auto maxY = std::numeric_limits<int>::min();
+        auto minX = std::numeric_limits<T>::max();
+        auto maxX = std::numeric_limits<T>::min();
+        auto minY = std::numeric_limits<T>::max();
+        auto maxY = std::numeric_limits<T>::min();
         for (const auto &pt : vertices) {
             if (pt[0] < minX) minX = pt[0];
             if (pt[1] < minY) minY = pt[1];
@@ -46,24 +47,25 @@ struct Shape {
         ext = 1.10 * std::max(dimX, dimY) / 2;
     }
 
-    const std::vector<std::array<int, 2>> vertices;
+    const std::vector<std::array<T, 2>> vertices;
     const std::vector<uint32_t> indices;
     int midX, midY, ext;
 };
 
 template <typename Polygon>
-auto buildPolygon(const Polygon &polygon) -> const Shape {
+auto buildPolygon(const Polygon &polygon) {
+    using Coord = typename Polygon::value_type::value_type::first_type;
     if (tesselator == 0) {
-        EarcutTesselator<int, Polygon> tess(polygon);
+        EarcutTesselator<Coord, Polygon> tess(polygon);
         tess.run();
-        return Shape(std::move(tess.vertices()), std::move(tess.indices()));
+        return Shape<Coord>(std::move(tess.vertices()), std::move(tess.indices()));
     } else if (tesselator == 1) {
-        Libtess2Tesselator<int, Polygon> tess(polygon);
+        Libtess2Tesselator<Coord, Polygon> tess(polygon);
         tess.run();
-        return Shape(std::move(tess.vertices()), std::move(tess.indices()));
+        return Shape<Coord>(std::move(tess.vertices()), std::move(tess.indices()));
     }
     assert(false);
-    return Shape(std::vector<std::array<int, 2>>(), std::vector<uint32_t>());
+    return Shape<Coord>(std::vector<std::array<Coord, 2>>(), std::vector<uint32_t>());
 }
 
 template <typename Polygon>
@@ -181,6 +183,7 @@ int main() {
                 case 9: drawPolygon("water3", mapbox::fixtures::water3); break;
                 case 10: drawPolygon("water3b", mapbox::fixtures::water3b); break;
                 case 11: drawPolygon("water4", mapbox::fixtures::water4); break;
+                case 12: drawPolygon("park", mapbox::fixtures::park); break;
                 default: assert(false); break;
             }
 

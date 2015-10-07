@@ -291,7 +291,7 @@ bool Earcut<Coord, N>::isEar(Node* ear) {
     Vertex v;
     typename Vertex::value_type px;
     typename Vertex::value_type py;
-    Coord s, t, k;
+    double s, t, k;
     Node* node;
 
     // if we use z-order curve hashing, iterate through the curve
@@ -523,9 +523,9 @@ Earcut<Coord, N>::findHoleBridge(Node* const holeNode, Node* const outerNode) {
     double t = 0;
     double tanCur = 0;
 
-    Coord mx;
-    Coord my;
-    Coord amx;
+    double mx;
+    double my;
+    double amx;
 
     node = mNode->next;
 
@@ -686,7 +686,7 @@ bool Earcut<Coord, N>::isValidDiagonal(Node* a, Node* b) {
 // winding order of triangle formed by 3 given points
 template <typename Coord, typename N>
 int8_t Earcut<Coord, N>::orient(const Vertex& p, const Vertex& q, const Vertex& r) const {
-    const auto o = (q[1] - p[1]) * (r[0] - q[0]) - (q[0] - p[0]) * (r[1] - q[1]);
+    const auto o = double(q[1] - p[1]) * double(r[0] - q[0]) - double(q[0] - p[0]) * double(r[1] - q[1]);
     return o > 0 ? 1 :
            o < 0 ? -1 : 0;
 }
@@ -741,7 +741,7 @@ bool Earcut<Coord, N>::middleInside(Node* start, const Vertex& a, const Vertex& 
         auto p2 = node->next->v;
 
         if (((p1[1] > py) != (p2[1] > py)) &&
-            (px < (p2[0] - p1[0]) * (py - p1[1]) / (p2[1] - p1[1]) + p1[0]))
+            (px < double(p2[0] - p1[0]) * double(py - p1[1]) / double(p2[1] - p1[1]) + p1[0]))
                 inside = !inside;
 
         node = node->next;
