@@ -97,6 +97,8 @@ void Earcut<Coord, N>::operator()(const Polygon& points) {
     vertices = 0;
     nodes = std::make_unique<boost::object_pool<Node>>();
 
+    if (points.empty()) return;
+
     auto outerNode = filterPoints(linkedList(points[0], true));
     if (!outerNode) return;
 

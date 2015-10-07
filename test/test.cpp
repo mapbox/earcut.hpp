@@ -98,6 +98,14 @@ void areaTest(const char *name, const Polygon &polygon, double earcutDeviation =
 int main() {
     Tap tap;
 
+    {
+        Tap::Test t("empty");
+        EarcutTesselator<int, mapbox::fixtures::IntegerPolygon> tesselator(mapbox::fixtures::IntegerPolygon {});
+        tesselator.run();
+        t.ok(tesselator.indices().empty(), "empty input produces empty result");
+        t.end();
+    }
+
     areaTest<int>("bad_hole", mapbox::fixtures::bad_hole, 0.042, 0.0022);
     areaTest<int>("building", mapbox::fixtures::building);
     areaTest<int>("degenerate", mapbox::fixtures::degenerate);
