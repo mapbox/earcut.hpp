@@ -19,7 +19,7 @@ static bool drawMesh = true;
 static bool dirty = true;
 
 static int shapeIndex = 0;
-const static int totalShapes = 13;
+const static int totalShapes = 14;
 
 static int tesselator = 0;
 const static int totalTesselators = 2;
@@ -184,6 +184,7 @@ int main() {
                 case 10: drawPolygon("water3b", mapbox::fixtures::water3b); break;
                 case 11: drawPolygon("water4", mapbox::fixtures::water4); break;
                 case 12: drawPolygon("park", mapbox::fixtures::park); break;
+                case 13: drawPolygon("issue35", mapbox::fixtures::issue35); break;
                 default: assert(false); break;
             }
 
