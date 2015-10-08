@@ -37,6 +37,7 @@ extern const IntegerPolygon water3;
 extern const IntegerPolygon water3b;
 extern const IntegerPolygon water4;
 extern const ShortPolygon park;
+extern const IntegerPolygon issue34;
 
 }
 }

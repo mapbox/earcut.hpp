@@ -544,7 +544,8 @@ Earcut<Coord, N>::findHoleBridge(Node* const holeNode, Node* const outerNode) {
 
                 if (t >= 0 && A * sign - s - t >= 0) {
                     tanCur = double(std::abs(double(py - my))) / amx; // tangential
-                    if (tanCur < tanMin && locallyInside(node, holeNode)) {
+                    if ((tanCur < tanMin || (tanCur == tanMin && mx > bx)) &&
+                            locallyInside(node, holeNode)) {
                         mNode = node;
                         tanMin = tanCur;
                     }
