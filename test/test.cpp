@@ -56,7 +56,7 @@ std::string formatPercent(double num) {
 }
 
 template <typename Coord, typename Polygon>
-void areaTest(const char *name, const Polygon &polygon, double earcutDeviation = 1e-14, double libtess2Deviation = 0.000001) {
+void areaTest(const char *name, const Polygon &polygon, int expectedTriangles = 0, double earcutDeviation = 1e-14, double libtess2Deviation = 0.000001) {
     Tap::Test t(name);
 
     const auto expectedArea = polygonArea(polygon);
@@ -75,6 +75,11 @@ void areaTest(const char *name, const Polygon &polygon, double earcutDeviation =
         t.ok(deviation <= earcutDeviation, std::string{ "earcut deviation " } + formatPercent(deviation) +
                                                 " is less than " +
                                                 formatPercent(earcutDeviation));
+
+        if (expectedTriangles) {
+            t.ok(indices.size() / 3 == expectedTriangles, std::to_string(indices.size() / 3) + " triangles when expected " +
+                std::to_string(expectedTriangles));
+        }
     }
 
     { // Libtess2
@@ -92,6 +97,7 @@ void areaTest(const char *name, const Polygon &polygon, double earcutDeviation =
                                                 " is less than " +
                                                 formatPercent(libtess2Deviation));
     }
+
     t.end();
 }
 
@@ -106,22 +112,22 @@ int main() {
         t.end();
     }
 
-    areaTest<int>("bad_hole", mapbox::fixtures::bad_hole, 0.042, 0.0022);
-    areaTest<int>("building", mapbox::fixtures::building);
-    areaTest<int>("degenerate", mapbox::fixtures::degenerate);
-    areaTest<double>("dude", mapbox::fixtures::dude);
+    areaTest<int>("building", mapbox::fixtures::building, 12);
+    areaTest<double>("dude", mapbox::fixtures::dude, 106);
+    areaTest<int>("water", mapbox::fixtures::water, 2482, 0.0019, 0.00002);
+    areaTest<int>("water2", mapbox::fixtures::water2, 1211);
+    areaTest<int>("water3", mapbox::fixtures::water3, 197);
+    areaTest<int>("water3b", mapbox::fixtures::water3b, 25);
+    areaTest<int>("water4", mapbox::fixtures::water4, 705);
+    areaTest<int>("water_huge", mapbox::fixtures::water_huge, 5162, 0.0015, 0.0002);
+    areaTest<int>("water_huge2", mapbox::fixtures::water_huge2, 4457, 0.002, 0.00015);
+    areaTest<int>("degenerate", mapbox::fixtures::degenerate, 0);
+    areaTest<int>("bad_hole", mapbox::fixtures::bad_hole, 34, 0.042, 0.0022);
     // allow libtess2 failure on this by providing infinity.
-    areaTest<int>("empty_square", mapbox::fixtures::empty_square, 0, std::numeric_limits<double>::infinity());
-    areaTest<int>("water_huge", mapbox::fixtures::water_huge, 0.0015, 0.0002);
-    areaTest<int>("water_huge2", mapbox::fixtures::water_huge2, 0.002, 0.00015);
-    areaTest<int>("water", mapbox::fixtures::water, 0.0019, 0.00002);
-    areaTest<int>("water2", mapbox::fixtures::water2);
-    areaTest<int>("water3", mapbox::fixtures::water3);
-    areaTest<int>("water3b", mapbox::fixtures::water3b);
-    areaTest<int>("water4", mapbox::fixtures::water4);
+    areaTest<int>("empty_square", mapbox::fixtures::empty_square, 0, 0, std::numeric_limits<double>::infinity());
+    areaTest<int>("issue34", mapbox::fixtures::issue34, 139);
+    areaTest<int>("issue35", mapbox::fixtures::issue35, 844);
     areaTest<short>("park", mapbox::fixtures::park);
-    areaTest<int>("issue34", mapbox::fixtures::issue34);
-    areaTest<int>("issue35", mapbox::fixtures::issue35);
 
     return 0;
 }
