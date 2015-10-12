@@ -634,14 +634,15 @@ Earcut<Coord, N>::sortLinked(Node* list) {
 // z-order of a Vertex given coords and size of the data bounding box
 template <typename Coord, typename N>
 int32_t Earcut<Coord, N>::zOrder(const double x_, const double y_) {
-    // coords are transformed into (0..1000) integer range
-    int32_t x = 1000 * double(x_ - double(minX)) / size;
+    // coords are transformed into non-negative 15-bit integer range
+    int32_t x = 32767 * double(x_ - double(minX)) / size;
+    int32_t y = 32767 * double(y_ - double(minY)) / size;
+
     x = (x | (x << 8)) & 0x00FF00FF;
     x = (x | (x << 4)) & 0x0F0F0F0F;
     x = (x | (x << 2)) & 0x33333333;
     x = (x | (x << 1)) & 0x55555555;
 
-    int32_t y = 1000 * double(y_ - double(minY)) / size;
     y = (y | (y << 8)) & 0x00FF00FF;
     y = (y | (y << 4)) & 0x0F0F0F0F;
     y = (y | (y << 2)) & 0x33333333;
