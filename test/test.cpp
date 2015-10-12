@@ -119,8 +119,8 @@ int main() {
     areaTest<int>("water3", mapbox::fixtures::water3, 197);
     areaTest<int>("water3b", mapbox::fixtures::water3b, 25);
     areaTest<int>("water4", mapbox::fixtures::water4, 705);
-    areaTest<int>("water_huge", mapbox::fixtures::water_huge, 5162, 0.0015, 0.0002);
-    areaTest<int>("water_huge2", mapbox::fixtures::water_huge2, 4457, 0.002, 0.00015);
+    areaTest<int>("water_huge", mapbox::fixtures::water_huge, 5164, 0.0015, 0.0002);
+    areaTest<int>("water_huge2", mapbox::fixtures::water_huge2, 4462, 0.002, 0.00015);
     areaTest<int>("degenerate", mapbox::fixtures::degenerate, 0);
     areaTest<int>("bad_hole", mapbox::fixtures::bad_hole, 34, 0.042, 0.0022);
     // allow libtess2 failure on this by providing infinity.

@@ -81,6 +81,7 @@ private:
     bool middleInside(Node* start, const Vertex& a, const Vertex& b);
     Node* splitPolygon(Node* a, Node* b);
     template <typename Point> Node* insertNode(N i, const Point& p, Node* last);
+    void removeNode(Node* node);
 
     bool hashing;
     Coord minX, maxX;
@@ -184,13 +185,7 @@ Earcut<Coord, N>::filterPoints(Node* start, Node* end) {
 
         if (equals(node->v, node->next->v) || orient(node->prev->v, node->v, node->next->v) == 0) {
 
-            // remove node
-            node->prev->next = node->next;
-            node->next->prev = node->prev;
-
-            if (node->prevZ) node->prevZ->nextZ = node->nextZ;
-            if (node->nextZ) node->nextZ->prevZ = node->prevZ;
-
+            removeNode(node);
             node = end = node->prev;
 
             if (node == node->next) return nullptr;
@@ -231,12 +226,7 @@ void Earcut<Coord, N>::earcutLinked(Node* ear, int pass) {
             indices.emplace_back(ear->i);
             indices.emplace_back(next->i);
 
-            // remove ear node
-            next->prev = prev;
-            prev->next = next;
-
-            if (ear->prevZ) ear->prevZ->nextZ = ear->nextZ;
-            if (ear->nextZ) ear->nextZ->prevZ = ear->prevZ;
+            removeNode(ear);
 
             // skipping the next vertice leads to less sliver triangles
             ear = next->next;
@@ -397,14 +387,8 @@ Earcut<Coord, N>::cureLocalIntersections(Node* start) {
             indices.emplace_back(b->i);
 
             // remove two nodes involved
-            a->next = b;
-            b->prev = a;
-
-            Node* az = node->prevZ;
-            Node* bz = node->nextZ ? node->nextZ->nextZ : 0;
-
-            if (az) az->nextZ = bz;
-            if (bz) bz->prevZ = az;
+            removeNode(node);
+            removeNode(node->next);
 
             node = start = b;
         }
@@ -802,6 +786,15 @@ Earcut<Coord, N>::insertNode(N i, const Point& p, Node* last) {
         last->next = node;
     }
     return node;
+}
+
+template <typename Coord, typename N>
+void Earcut<Coord, N>::removeNode(Node* node) {
+    node->next->prev = node->prev;
+    node->prev->next = node->next;
+
+    if (node->prevZ) node->prevZ->nextZ = node->nextZ;
+    if (node->nextZ) node->nextZ->prevZ = node->prevZ;
 }
 
 }
