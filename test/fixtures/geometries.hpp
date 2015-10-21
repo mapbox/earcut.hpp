@@ -29,6 +29,13 @@ extern const IntegerPolygon building;
 extern const IntegerPolygon degenerate;
 extern const DoublePolygon dude;
 extern const IntegerPolygon empty_square;
+extern const IntegerPolygon hole_touching_outer;
+extern const IntegerPolygon issue34;
+extern const IntegerPolygon issue35;
+extern const IntegerPolygon outside_ring;
+extern const DoublePolygon self_touching;
+extern const IntegerPolygon simplified_us_border;
+extern const IntegerPolygon touching_holes;
 extern const IntegerPolygon water_huge;
 extern const IntegerPolygon water_huge2;
 extern const IntegerPolygon water;
@@ -37,8 +44,6 @@ extern const IntegerPolygon water3;
 extern const IntegerPolygon water3b;
 extern const IntegerPolygon water4;
 extern const ShortPolygon park;
-extern const IntegerPolygon issue34;
-extern const IntegerPolygon issue35;
 
 }
 }
