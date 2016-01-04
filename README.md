@@ -70,4 +70,4 @@ Note that the `earcut.vertices` will always have the type `std::array<Coord, 2>`
 
 ## Status
 
-This is currently based on [rev f452299](https://github.com/mapbox/earcut/tree/f452299f2d94662e0c00be921da4dd988fba4233).
+This is currently based on [earcut 2.0.6](https://github.com/mapbox/earcut#206-oct-26-2015).
