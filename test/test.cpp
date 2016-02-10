@@ -127,6 +127,7 @@ int main() {
     areaTest<int>("empty_square", mapbox::fixtures::empty_square, 0, 0, std::numeric_limits<double>::infinity());
     areaTest<int>("issue16", mapbox::fixtures::issue16, 12);
     areaTest<int>("issue17", mapbox::fixtures::issue17, 11);
+    areaTest<int>("steiner", mapbox::fixtures::steiner, 9);
     areaTest<int>("issue29", mapbox::fixtures::issue29, 40);
     areaTest<int>("issue34", mapbox::fixtures::issue34, 139);
     areaTest<int>("issue35", mapbox::fixtures::issue35, 844);
@@ -135,6 +136,8 @@ int main() {
     areaTest<int>("simplified-us-border", mapbox::fixtures::simplified_us_border, 120, 1e-14, 0.001);
     areaTest<int>("touching-holes", mapbox::fixtures::touching_holes, 57);
     areaTest<int>("hole-touching-outer", mapbox::fixtures::hole_touching_outer, 77);
+    areaTest<int>("hilbert", mapbox::fixtures::hilbert, 1023);
+    areaTest<int>("issue45", mapbox::fixtures::issue45, 10);
     areaTest<short>("park", mapbox::fixtures::park);
 
     return 0;
