@@ -19,7 +19,7 @@ static bool drawMesh = true;
 static bool dirty = true;
 
 static int shapeIndex = 0;
-const static int totalShapes = 14;
+const static int totalShapes = 26;
 
 static int tesselator = 0;
 const static int totalTesselators = 2;
@@ -171,20 +171,32 @@ int main() {
 
         if (dirty) {
             switch (shapeIndex) {
-                case 0: drawPolygon("bad_hole", mapbox::fixtures::bad_hole); break;
-                case 1: drawPolygon("building", mapbox::fixtures::building); break;
-                case 2: drawPolygon("degenerate", mapbox::fixtures::degenerate); break;
-                case 3: drawPolygon("dude", mapbox::fixtures::dude); break;
-                case 4: drawPolygon("empty_square", mapbox::fixtures::empty_square); break;
-                case 5: drawPolygon("water_huge", mapbox::fixtures::water_huge); break;
-                case 6: drawPolygon("water_huge2", mapbox::fixtures::water_huge2); break;
-                case 7: drawPolygon("water", mapbox::fixtures::water); break;
-                case 8: drawPolygon("water2", mapbox::fixtures::water2); break;
-                case 9: drawPolygon("water3", mapbox::fixtures::water3); break;
-                case 10: drawPolygon("water3b", mapbox::fixtures::water3b); break;
-                case 11: drawPolygon("water4", mapbox::fixtures::water4); break;
-                case 12: drawPolygon("park", mapbox::fixtures::park); break;
-                case 13: drawPolygon("issue35", mapbox::fixtures::issue35); break;
+                case 0: drawPolygon("building", mapbox::fixtures::building); break;
+                case 1: drawPolygon("dude", mapbox::fixtures::dude); break;
+                case 2: drawPolygon("water", mapbox::fixtures::water); break;
+                case 3: drawPolygon("water2", mapbox::fixtures::water2); break;
+                case 4: drawPolygon("water3", mapbox::fixtures::water3); break;
+                case 5: drawPolygon("water3b", mapbox::fixtures::water3b); break;
+                case 6: drawPolygon("water4", mapbox::fixtures::water4); break;
+                case 7: drawPolygon("water_huge", mapbox::fixtures::water_huge); break;
+                case 8: drawPolygon("water_huge2", mapbox::fixtures::water_huge2); break;
+                case 9: drawPolygon("degenerate", mapbox::fixtures::degenerate); break;
+                case 10: drawPolygon("bad_hole", mapbox::fixtures::bad_hole); break;
+                case 11: drawPolygon("empty_square", mapbox::fixtures::empty_square); break;
+                case 12: drawPolygon("issue16", mapbox::fixtures::issue16); break;
+                case 13: drawPolygon("issue17", mapbox::fixtures::issue17); break;
+                case 14: drawPolygon("steiner", mapbox::fixtures::steiner); break;
+                case 15: drawPolygon("issue29", mapbox::fixtures::issue29); break;
+                case 16: drawPolygon("issue34", mapbox::fixtures::issue34); break;
+                case 17: drawPolygon("issue35", mapbox::fixtures::issue35); break;
+                case 18: drawPolygon("self-touching", mapbox::fixtures::self_touching); break;
+                case 19: drawPolygon("outside-ring", mapbox::fixtures::outside_ring); break;
+                case 20: drawPolygon("simplified-us-border", mapbox::fixtures::simplified_us_border); break;
+                case 21: drawPolygon("touching-holes", mapbox::fixtures::touching_holes); break;
+                case 22: drawPolygon("hole-touching-outer", mapbox::fixtures::hole_touching_outer); break;
+                case 23: drawPolygon("hilbert", mapbox::fixtures::hilbert); break;
+                case 24: drawPolygon("issue45", mapbox::fixtures::issue45); break;
+                case 25: drawPolygon("park", mapbox::fixtures::park); break;
                 default: assert(false); break;
             }
 
