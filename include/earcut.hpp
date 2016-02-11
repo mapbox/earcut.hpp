@@ -53,6 +53,9 @@ private:
         // previous and next nodes in z-order
         Node* prevZ = nullptr;
         Node* nextZ = nullptr;
+
+        // indicates whether this is a steiner point
+        bool steiner = false;
     };
 
     template <typename Ring> Node* linkedList(const Ring& points, const bool clockwise);
@@ -98,7 +101,7 @@ void Earcut<N>::operator()(const Polygon& points) {
 
     if (points.empty()) return;
 
-    Node* outerNode = filterPoints(linkedList(points[0], true));
+    Node* outerNode = linkedList(points[0], true);
     if (!outerNode) return;
 
     double x;
@@ -109,6 +112,8 @@ void Earcut<N>::operator()(const Polygon& points) {
     for (size_t i = 0; threshold >= 0 && i < points.size(); i++) {
         threshold -= points[i].size();
     }
+
+    if (points.size() > 1) outerNode = eliminateHoles(points, outerNode);
 
     // if the shape is not too simple, we'll use z-order curve hash later; calculate polygon bbox
     hashing = threshold < 0;
@@ -129,8 +134,6 @@ void Earcut<N>::operator()(const Polygon& points) {
         // minX, minY and size are later used to transform coords into integers for z-order calculation
         size = std::max(maxX - minX, maxY - minY);
     }
-
-    if (points.size() > 1) outerNode = eliminateHoles(points, outerNode);
 
     earcutLinked(outerNode);
 }
@@ -180,8 +183,7 @@ Earcut<N>::filterPoints(Node* start, Node* end) {
     do {
         again = false;
 
-        if (equals(p, p->next) || area(p->prev, p, p->next) == 0) {
-
+        if (!p->steiner && (equals(p, p->next) || area(p->prev, p, p->next) == 0)) {
             removeNode(p);
             p = end = p->prev;
 
@@ -375,8 +377,9 @@ Earcut<N>::eliminateHoles(const Polygon& points, Node* outerNode) {
 
     std::vector<Node*> queue;
     for (size_t i = 1; i < len; i++) {
-        Node* list = filterPoints(linkedList(points[i], false));
+        Node* list = linkedList(points[i], false);
         if (list) {
+            if (list == list->next) list->steiner = true;
             queue.push_back(getLeftmost(list));
         }
     }
@@ -427,6 +430,8 @@ Earcut<N>::findHoleBridge(Node* hole, Node* outerNode) {
     } while (p != outerNode);
 
     if (!m) return 0;
+
+    if (hole->x == m->x) return m->prev;
 
     // look for points inside the triangle of hole Vertex, segment intersection and endpoint;
     // if there are no points found, we have a valid connection;
