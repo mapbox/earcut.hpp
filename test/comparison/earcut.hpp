@@ -34,7 +34,7 @@ public:
     }
 
 private:
-    mapbox::Earcut<Coord> earcut;
+    mapbox::Earcut<> earcut;
     const Polygon &polygon;
     Vertices vertices_;
 };

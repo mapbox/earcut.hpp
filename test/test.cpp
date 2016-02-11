@@ -125,6 +125,9 @@ int main() {
     areaTest<int>("bad_hole", mapbox::fixtures::bad_hole, 34, 0.042, 0.0022);
     // allow libtess2 failure on this by providing infinity.
     areaTest<int>("empty_square", mapbox::fixtures::empty_square, 0, 0, std::numeric_limits<double>::infinity());
+    areaTest<double>("issue16", mapbox::fixtures::issue16, 12, 1e-14, 0.0255);
+    areaTest<double>("issue17", mapbox::fixtures::issue17, 11);
+    areaTest<double>("issue29", mapbox::fixtures::issue29, 40);
     areaTest<int>("issue34", mapbox::fixtures::issue34, 139);
     areaTest<int>("issue35", mapbox::fixtures::issue35, 844);
     areaTest<double>("self-touching", mapbox::fixtures::self_touching, 124, 3.4e-14, 0.002);
