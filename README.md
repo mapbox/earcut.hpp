@@ -18,7 +18,7 @@ using Coord = double;
 using N = uint32_t;
 
 // Create tessellator
-mapbox::Earcut<Coord, N> earcut;
+mapbox::Earcut<N> earcut;
 
 // Create array
 using Point = std::array<Coord, 2>;
@@ -28,11 +28,8 @@ std::vector<std::vector<Point>> polygon;
 // Run tessellation
 earcut(polygon);
 
-// An array of vertices that are referenced by indices.
-// Type: std::vector<std::array<Coord, 2>>
-earcut.vertices;
-
-// Array of vertex indices. Three subsequent indices form a triangle.
+// Array of indices that refer to the vertices of the input polygon. 
+// Three subsequent indices form a triangle.
 // Type: std::vector<N>
 earcut.indices;
 
@@ -58,7 +55,7 @@ struct nth<0, IntPoint> {
 template <>
 struct nth<1, IntPoint> {
     inline static int64_t get(const IntPoint &t) {
-        return t.X;
+        return t.Y;
     };
 };
 
