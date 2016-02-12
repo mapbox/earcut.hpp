@@ -20,8 +20,8 @@ public:
         for (const auto &ring : polygon) {
             std::vector<TESSreal> tessRing;
             for (const auto &pt : ring) {
-                tessRing.push_back(pt.first);
-                tessRing.push_back(pt.second);
+                tessRing.push_back(static_cast<TESSreal>(pt.first));
+                tessRing.push_back(static_cast<TESSreal>(pt.second));
             }
             tessPolygon.push_back(tessRing);
         }

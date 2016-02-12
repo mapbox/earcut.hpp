@@ -126,15 +126,15 @@ void Earcut<N>::operator()(const Polygon& points) {
         do {
             x = p->x;
             y = p->y;
-            if (x < minX) minX = x;
-            if (y < minY) minY = y;
-            if (x > maxX) maxX = x;
-            if (y > maxY) maxY = y;
+            minX = (std::min)(minX, x);
+            minY = (std::min)(minY, y);
+            maxX = (std::max)(maxX, x);
+            maxY = (std::max)(maxY, y);
             p = p->next;
         } while (p != outerNode);
 
         // minX, minY and size are later used to transform coords into integers for z-order calculation
-        size = std::max(maxX - minX, maxY - minY);
+        size = (std::max)(maxX - minX, maxY - minY);
     }
 
     earcutLinked(outerNode);
@@ -285,10 +285,10 @@ bool Earcut<N>::isEarHashed(Node* ear) {
     if (area(a, b, c) >= 0) return false; // reflex, can't be an ear
 
     // triangle bbox; min & max are calculated like this for speed
-    const double minTX = a->x < b->x ? (a->x < c->x ? a->x : c->x) : (b->x < c->x ? b->x : c->x);
-    const double minTY = a->y < b->y ? (a->y < c->y ? a->y : c->y) : (b->y < c->y ? b->y : c->y);
-    const double maxTX = a->x > b->x ? (a->x > c->x ? a->x : c->x) : (b->x > c->x ? b->x : c->x);
-    const double maxTY = a->y > b->y ? (a->y > c->y ? a->y : c->y) : (b->y > c->y ? b->y : c->y);
+    const double minTX = (std::min)(a->x, (std::min)(b->x, c->x));
+    const double minTY = (std::min)(a->y, (std::min)(b->y, c->y));
+    const double maxTX = (std::max)(a->x, (std::max)(b->x, c->x));
+    const double maxTY = (std::max)(a->y, (std::max)(b->y, c->y));
 
     // z-order range for the current triangle bbox;
     const int32_t minZ = zOrder(minTX, minTY);
@@ -552,8 +552,8 @@ Earcut<N>::sortLinked(Node* list) {
 template <typename N>
 int32_t Earcut<N>::zOrder(const double x_, const double y_) {
     // coords are transformed into non-negative 15-bit integer range
-    int32_t x = 32767 * (x_ - minX) / size;
-    int32_t y = 32767 * (y_ - minY) / size;
+    int32_t x = 32767 * static_cast<int32_t>(x_ - minX) / size;
+    int32_t y = 32767 * static_cast<int32_t>(y_ - minY) / size;
 
     x = (x | (x << 8)) & 0x00FF00FF;
     x = (x | (x << 4)) & 0x0F0F0F0F;

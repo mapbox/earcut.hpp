@@ -7,7 +7,7 @@
 #include <chrono>
 
 template <template <typename, typename> class Tesselator, typename Coord, typename Polygon>
-int64_t bench(const Polygon &polygon) {
+double bench(const Polygon &polygon) {
     std::vector<uint64_t> runs;
     uint64_t total = 0;
     uint32_t warmup = 0;
@@ -37,9 +37,9 @@ void report(const char *name, const Polygon &polygon, const int cols[]) {
 
     fprintf(stderr, "| %-*s | ", cols[0], name);
     auto earcut = bench<EarcutTesselator, Coord>(polygon);
-    fprintf(stderr, "%'*lld ops/s | ", cols[1] - 6, earcut);
+    fprintf(stderr, "%'*.0f ops/s | ", cols[1] - 6, earcut);
     auto libtess2 = bench<Libtess2Tesselator, Coord>(polygon);
-    fprintf(stderr, "%'*lld ops/s |\n", cols[2] - 6, libtess2);
+    fprintf(stderr, "%'*.0f ops/s |\n", cols[2] - 6, libtess2);
 }
 
 void separator(const int cols[]) {

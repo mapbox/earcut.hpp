@@ -40,8 +40,8 @@ struct Shape {
             if (pt[1] > maxY) maxY = pt[1];
         }
 
-        const auto dimX = maxX - minX;
-        const auto dimY = maxY - minY;
+        const auto dimX = minX < maxX ? maxX - minX : 0;
+        const auto dimY = minY < maxY ? maxY - minY : 0;
         midX = minX + dimX / 2;
         midY = minY + dimY / 2;
         ext = 1.10 * std::max(dimX, dimY) / 2;
