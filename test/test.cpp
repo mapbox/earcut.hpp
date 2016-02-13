@@ -4,17 +4,15 @@
 
 #include "fixtures/geometries.hpp"
 
-#include <cstdlib>
-#include <cmath>
+#include <iomanip>
+#include <locale>
+#include <sstream>
 
 template <typename Point>
 double triangleArea(const Point &a, const Point &b, const Point &c) {
     using namespace mapbox::util;
-    return double(std::abs((nth<0, Point>::get(a) - nth<0, Point>::get(c)) *
-                               (nth<1, Point>::get(b) - nth<1, Point>::get(a)) -
-                           (nth<0, Point>::get(a) - nth<0, Point>::get(b)) *
-                               (nth<1, Point>::get(c) - nth<1, Point>::get(a)))) /
-           2;
+    return double(std::abs((nth<0, Point>::get(a) - nth<0, Point>::get(c)) * (nth<1, Point>::get(b) - nth<1, Point>::get(a)) -
+                           (nth<0, Point>::get(a) - nth<0, Point>::get(b)) * (nth<1, Point>::get(c) - nth<1, Point>::get(a)))) / 2;
 }
 
 template <typename Vertices, typename Indices>
@@ -52,7 +50,10 @@ double polygonArea(const Polygon &rings) {
 }
 
 std::string formatPercent(double num) {
-    return std::to_string(std::round(1e8 * num) / 1e6) + "%";
+    std::stringstream ss;
+    ss.imbue(std::locale(""));
+    ss << std::fixed << std::setprecision(6) << num * 100 << "%";
+    return ss.str();
 }
 
 template <typename Coord, typename Polygon>

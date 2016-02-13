@@ -2,7 +2,8 @@
 #include "comparison/libtess2.hpp"
 #include "fixtures/geometries.hpp"
 
-#include <cstdio>
+#include <iostream>
+#include <iomanip>
 #include <vector>
 #include <chrono>
 
@@ -34,30 +35,35 @@ double bench(const Polygon &polygon) {
 
 template <typename Coord, typename Polygon>
 void report(const char *name, const Polygon &polygon, const int cols[]) {
-
-    fprintf(stderr, "| %-*s | ", cols[0], name);
+    std::cerr << "| " << std::left << std::setw(cols[0]) << name << " | ";
     auto earcut = bench<EarcutTesselator, Coord>(polygon);
-    fprintf(stderr, "%'*.0f ops/s | ", cols[1] - 6, earcut);
+    std::cerr << std::right << std::setw(cols[1] - 6) << std::fixed << std::setprecision(0) << earcut << " ops/s | ";
     auto libtess2 = bench<Libtess2Tesselator, Coord>(polygon);
-    fprintf(stderr, "%'*.0f ops/s |\n", cols[2] - 6, libtess2);
+    std::cerr << std::setw(cols[2] - 6) << std::setprecision(0) << libtess2 << " ops/s |" << std::endl;
 }
 
 void separator(const int cols[]) {
-    const char *padding="-------------------------------------------------------------------------";
+    const char filling = std::cerr.fill();
+    std::cerr << std::setfill('-');
     for (int i = 0; cols[i]; i++) {
-        fprintf(stderr, "+-%.*s-", cols[i], padding);
+        std::cerr << "+" << std::setw(cols[i]+2) << std::cerr.fill();
     }
-    fprintf(stderr, "+\n");
+    std::cerr << std::setfill(filling);
+    std::cerr << "+" << std::endl;
 }
 
-#include <clocale>
 int main() {
-    setlocale(LC_NUMERIC, "");
-
+    std::cerr.imbue(std::locale(""));
     const int cols[] = { 14, 18, 18, 0 };
 
     separator(cols);
-    fprintf(stderr, "| %-*s | %-*s | %-*s |\n", cols[0], "Polygon", cols[1], "earcut", cols[2], "libtess2");
+
+    std::cerr << "|" << std::left
+        << std::setw(cols[0]+1) << " Polygon" << " |"
+        << std::setw(cols[1]+1) << " earcut" << " |"
+        << std::setw(cols[2]+1) << " libtess2" << " |"
+        << std::endl;
+
     separator(cols);
 
     report<int>("bad_hole", mapbox::fixtures::bad_hole, cols);

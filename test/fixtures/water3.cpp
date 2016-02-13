@@ -1,5 +1,8 @@
+// This file is auto-generated, manual changes will be lost if the code is regenerated.
+
 #include "geometries.hpp"
 
+MAPBOX_MSVC_DISABLE_OPTIMIZATION()
 namespace mapbox {
 namespace fixtures {
 
@@ -14,3 +17,4 @@ const IntegerPolygon water3 = {
 
 }
 }
+MAPBOX_MSVC_ENABLE_OPTIMIZATION()
