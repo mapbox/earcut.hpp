@@ -22,11 +22,11 @@ public:
     }
 
     void run() {
-        earcut(polygon);
+        indices_ = mapbox::earcut(polygon);
     }
 
     auto indices() const {
-        return earcut.indices;
+        return indices_;
     }
 
     auto vertices() const {
@@ -34,7 +34,7 @@ public:
     }
 
 private:
-    mapbox::Earcut<uint32_t> earcut;
     const Polygon &polygon;
     Vertices vertices_;
+    std::vector<uint32_t> indices_;
 };

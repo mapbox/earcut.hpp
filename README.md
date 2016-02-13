@@ -17,23 +17,15 @@ using Coord = double;
 // data won't have more than 65536 vertices.
 using N = uint32_t;
 
-// Create tessellator
-mapbox::Earcut<N> earcut;
-
 // Create array
 using Point = std::array<Coord, 2>;
 std::vector<std::vector<Point>> polygon;
 // ... fill polygon structure with actual data
 
 // Run tessellation
-earcut(polygon);
-
-// Array of indices that refer to the vertices of the input polygon. 
+// Returns array of indices that refer to the vertices of the input polygon. 
 // Three subsequent indices form a triangle.
-// Type: std::vector<N>
-earcut.indices;
-
-// You can now reuse the earcut object as you wish.
+std::vector<N> indices = mapbox::earcut<N>(polygon);
 ```
 
 It is also possible to use your custom point type as input. There are default accessors defined for `std::tuple`, `std::pair`, and `std::array`. For a custom type (like Clipper's `IntPoint` type), do this:
@@ -67,4 +59,4 @@ Note that the `earcut.vertices` will always have the type `std::array<Coord, 2>`
 
 ## Status
 
-This is currently based on [earcut 2.0.6](https://github.com/mapbox/earcut#206-oct-26-2015).
+This is currently based on [earcut 2.0.8](https://github.com/mapbox/earcut#208-jan-19-2016).

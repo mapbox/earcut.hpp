@@ -22,6 +22,8 @@ template <std::size_t I, typename T> struct nth {
 
 }
 
+namespace detail {
+
 template <typename N = uint32_t>
 class Earcut {
 public:
@@ -707,5 +709,12 @@ void Earcut<N>::removeNode(Node* p) {
     if (p->prevZ) p->prevZ->nextZ = p->nextZ;
     if (p->nextZ) p->nextZ->prevZ = p->prevZ;
 }
+}
 
+template <typename N = uint32_t, typename Polygon>
+std::vector<N> earcut(const Polygon& poly) {
+    mapbox::detail::Earcut<N> earcut;
+    earcut(poly);
+    return earcut.indices;
+}
 }
