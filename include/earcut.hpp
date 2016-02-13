@@ -1,15 +1,10 @@
 #pragma once
 
-#include <vector>
 #include <algorithm>
-#include <cmath>
 #include <cassert>
+#include <cmath>
 #include <memory>
-
-// http://stackoverflow.com/questions/17000542/
-#define BOOST_POOL_NO_MT       // disable multi-threading
-#define BOOST_THREAD_MUTEX_HPP // define the #include-guard to disable the header
-#include <boost/pool/object_pool.hpp>
+#include <vector>
 
 namespace mapbox {
 
@@ -91,7 +86,43 @@ private:
     double minY, maxY;
     double size;
 
-    std::unique_ptr<boost::object_pool<Node>> nodes;
+    template <typename T, typename Alloc = std::allocator<T>>
+    class ObjectPool {
+    public:
+        ObjectPool() { }
+        ObjectPool(std::size_t blockSize) {
+            reset(blockSize);
+        }
+        ~ObjectPool() {
+            clear();
+        }
+        template <typename... Args>
+        T* construct(Args&&... args) {
+            if (currentIndex >= blockSize) {
+                currentBlock = alloc.allocate(blockSize);
+                allocations.emplace_back(currentBlock);
+                currentIndex = 0;
+            }
+            T* object = &currentBlock[currentIndex++];
+            alloc.construct(object, std::forward<Args>(args)...);
+            return object;
+        }
+        void reset(std::size_t newBlockSize) {
+            for (auto allocation : allocations) alloc.deallocate(allocation, blockSize);
+            allocations.clear();
+            blockSize = std::max<std::size_t>(1, newBlockSize);
+            currentBlock = nullptr;
+            currentIndex = blockSize;
+        }
+        void clear() { reset(blockSize); }
+    private:
+        T* currentBlock = nullptr;
+        std::size_t currentIndex = 1;
+        std::size_t blockSize = 1;
+        std::vector<T*> allocations;
+        Alloc alloc;
+    };
+    ObjectPool<Node> nodes;
 };
 
 template <typename N> template <typename Polygon>
@@ -99,21 +130,26 @@ void Earcut<N>::operator()(const Polygon& points) {
     // reset
     indices.clear();
     vertices = 0;
-    nodes = std::make_unique<boost::object_pool<Node>>();
 
     if (points.empty()) return;
-
-    Node* outerNode = linkedList(points[0], true);
-    if (!outerNode) return;
 
     double x;
     double y;
     size = 0;
     int threshold = 80;
+    std::size_t len = 0;
 
     for (size_t i = 0; threshold >= 0 && i < points.size(); i++) {
         threshold -= points[i].size();
+        len += points[i].size();
     }
+
+    //estimate size of nodes and indices
+    nodes.reset(len * 3 / 2);
+    indices.reserve(len + points[0].size());
+
+    Node* outerNode = linkedList(points[0], true);
+    if (!outerNode) return;
 
     if (points.size() > 1) outerNode = eliminateHoles(points, outerNode);
 
@@ -138,6 +174,8 @@ void Earcut<N>::operator()(const Polygon& points) {
     }
 
     earcutLinked(outerNode);
+
+    nodes.clear();
 }
 
 // create a circular doubly linked list from polygon points in the specified winding order
@@ -659,8 +697,8 @@ bool Earcut<N>::middleInside(const Node* a, const Node* b) {
 template <typename N>
 typename Earcut<N>::Node*
 Earcut<N>::splitPolygon(Node* a, Node* b) {
-    Node* a2 = new (nodes->malloc()) Node(a->i, a->x, a->y);
-    Node* b2 = new (nodes->malloc()) Node(b->i, b->x, b->y);
+    Node* a2 = nodes.construct(a->i, a->x, a->y);
+    Node* b2 = nodes.construct(b->i, b->x, b->y);
     Node* an = a->next;
     Node* bp = b->prev;
 
@@ -683,9 +721,7 @@ Earcut<N>::splitPolygon(Node* a, Node* b) {
 template <typename N> template <typename Point>
 typename Earcut<N>::Node*
 Earcut<N>::insertNode(N i, const Point& pt, Node* last) {
-    Node* p = new (nodes->malloc()) Node(i,
-        util::nth<0, Point>::get(pt),
-        util::nth<1, Point>::get(pt));
+    Node* p = nodes.construct(i, util::nth<0, Point>::get(pt), util::nth<1, Point>::get(pt));
 
     if (!last) {
         p->prev = p;
