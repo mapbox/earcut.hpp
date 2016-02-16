@@ -37,7 +37,8 @@ struct Shape {
         auto maxX = std::numeric_limits<T>::min();
         auto minY = std::numeric_limits<T>::max();
         auto maxY = std::numeric_limits<T>::min();
-        for (const auto &pt : vertices) {
+        for (const auto &i : indices) {
+            auto& pt = vertices[i];
             if (pt[0] < minX) minX = pt[0];
             if (pt[1] < minY) minY = pt[1];
             if (pt[0] > maxX) maxX = pt[0];
