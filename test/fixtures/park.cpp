@@ -1,5 +1,5 @@
 #include "geometries.hpp"
-
+MAPBOX_MSVC_DISABLE_OPTIMIZATION()
 namespace mapbox {
 namespace fixtures {
 
@@ -8,3 +8,4 @@ const ShortPolygon park = {
 };
 }
 }
+MAPBOX_MSVC_ENABLE_OPTIMIZATION()

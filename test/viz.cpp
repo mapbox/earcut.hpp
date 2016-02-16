@@ -3,6 +3,10 @@
 
 #include "fixtures/geometries.hpp"
 
+#if _MSC_VER >= 1900
+#pragma comment(lib, "legacy_stdio_definitions.lib")
+#endif
+
 #include <GLFW/glfw3.h>
 
 #include <cstdlib>
@@ -42,9 +46,10 @@ struct Shape {
 
         const auto dimX = minX < maxX ? maxX - minX : 0;
         const auto dimY = minY < maxY ? maxY - minY : 0;
-        midX = minX + dimX / 2;
-        midY = minY + dimY / 2;
-        ext = 1.10 * std::max(dimX, dimY) / 2;
+
+        midX = static_cast<int>(minX + dimX / 2);
+        midY = static_cast<int>(minY + dimY / 2);
+        ext = static_cast<int>(1.10 * (std::max)(dimX, dimY) / 2);
     }
 
     const std::vector<std::array<T, 2>> vertices;
@@ -52,9 +57,8 @@ struct Shape {
     int midX, midY, ext;
 };
 
-template <typename Polygon>
-auto buildPolygon(const Polygon &polygon) {
-    using Coord = typename Polygon::value_type::value_type::first_type;
+template <typename Coord, typename Polygon>
+Shape<Coord> buildPolygon(const Polygon &polygon) {
     if (tesselator == 0) {
         EarcutTesselator<Coord, Polygon> tess(polygon);
         tess.run();
@@ -72,7 +76,8 @@ template <typename Polygon>
 void drawPolygon(const char *name, const Polygon &polygon) {
     glfwSetWindowTitle(window, (tesselatorNames[tesselator] + ": " + name).c_str());
 
-    const auto shape = buildPolygon(polygon);
+    using Coord = typename Polygon::value_type::value_type::first_type;
+    const auto shape = buildPolygon<Coord>(polygon);
 
     glViewport(0, 0, fbWidth, fbHeight);
     glMatrixMode(GL_PROJECTION);
@@ -90,7 +95,7 @@ void drawPolygon(const char *name, const Polygon &polygon) {
         glBegin(GL_TRIANGLES);
         glColor3f(0.3f, 0.3f, 0.3f);
         for (const auto pt : x) {
-            glVertex2f(v[pt][0], v[pt][1]);
+            glVertex2f(static_cast<GLfloat>(v[pt][0]), static_cast<GLfloat>(v[pt][1]));
         }
         glEnd();
     }
@@ -101,12 +106,12 @@ void drawPolygon(const char *name, const Polygon &polygon) {
         glBegin(GL_LINES);
         glColor3f(1, 0, 0);
         for (size_t i = 0; i < x.size(); i += 3) {
-            glVertex2f(v[x[i]][0], v[x[i]][1]);
-            glVertex2f(v[x[i + 1]][0], v[x[i + 1]][1]);
-            glVertex2f(v[x[i + 1]][0], v[x[i + 1]][1]);
-            glVertex2f(v[x[i + 2]][0], v[x[i + 2]][1]);
-            glVertex2f(v[x[i + 2]][0], v[x[i + 2]][1]);
-            glVertex2f(v[x[i]][0], v[x[i]][1]);
+            glVertex2f(static_cast<GLfloat>(v[x[i]][0]), static_cast<GLfloat>(v[x[i]][1]));
+            glVertex2f(static_cast<GLfloat>(v[x[i + 1]][0]), static_cast<GLfloat>(v[x[i + 1]][1]));
+            glVertex2f(static_cast<GLfloat>(v[x[i + 1]][0]), static_cast<GLfloat>(v[x[i + 1]][1]));
+            glVertex2f(static_cast<GLfloat>(v[x[i + 2]][0]), static_cast<GLfloat>(v[x[i + 2]][1]));
+            glVertex2f(static_cast<GLfloat>(v[x[i + 2]][0]), static_cast<GLfloat>(v[x[i + 2]][1]));
+            glVertex2f(static_cast<GLfloat>(v[x[i]][0]), static_cast<GLfloat>(v[x[i]][1]));
         }
         glEnd();
     }

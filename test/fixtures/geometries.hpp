@@ -1,9 +1,19 @@
+// This file is auto-generated, manual changes will be lost if the code is regenerated.
+
 #pragma once
 
 #include <vector>
 #include <map>
 #include <string>
 #include <utility>
+
+#ifdef _MSC_VER // msvc has trouble optimizing large inline std::vectors, so we disable the optimization
+# define MAPBOX_MSVC_DISABLE_OPTIMIZATION() __pragma(optimize("", off))
+# define MAPBOX_MSVC_ENABLE_OPTIMIZATION() __pragma(optimize("", on))
+#else
+# define MAPBOX_MSVC_DISABLE_OPTIMIZATION()
+# define MAPBOX_MSVC_ENABLE_OPTIMIZATION()
+#endif
 
 namespace mapbox {
 namespace fixtures {
@@ -24,6 +34,7 @@ using DoubleTriangles = Triangles<DoublePoint>;
 using DoublePolygon = Polygon<DoublePoint>;
 
 
+extern const ShortPolygon park;
 extern const IntegerPolygon bad_hole;
 extern const IntegerPolygon building;
 extern const IntegerPolygon degenerate;
@@ -38,7 +49,6 @@ extern const IntegerPolygon issue34;
 extern const IntegerPolygon issue35;
 extern const IntegerPolygon issue45;
 extern const IntegerPolygon outside_ring;
-extern const ShortPolygon park;
 extern const DoublePolygon self_touching;
 extern const IntegerPolygon simplified_us_border;
 extern const IntegerPolygon steiner;
@@ -50,7 +60,6 @@ extern const IntegerPolygon water2;
 extern const IntegerPolygon water3;
 extern const IntegerPolygon water3b;
 extern const IntegerPolygon water4;
-
 
 }
 }

@@ -503,6 +503,7 @@ Earcut<N>::findHoleBridge(Node* hole, Node* outerNode) {
 // interlink polygon nodes in z-order
 template <typename N>
 void Earcut<N>::indexCurve(Node* start) {
+    assert(start);
     Node* p = start;
 
     do {
@@ -523,6 +524,7 @@ void Earcut<N>::indexCurve(Node* start) {
 template <typename N>
 typename Earcut<N>::Node*
 Earcut<N>::sortLinked(Node* list) {
+    assert(list);
     Node* p;
     Node* q;
     Node* e;
@@ -590,8 +592,8 @@ Earcut<N>::sortLinked(Node* list) {
 template <typename N>
 int32_t Earcut<N>::zOrder(const double x_, const double y_) {
     // coords are transformed into non-negative 15-bit integer range
-    int32_t x = 32767 * static_cast<int32_t>(x_ - minX) / size;
-    int32_t y = 32767 * static_cast<int32_t>(y_ - minY) / size;
+    int32_t x = static_cast<int32_t>(32767.0 * (x_ - minX) / size);
+    int32_t y = static_cast<int32_t>(32767.0 * (y_ - minY) / size);
 
     x = (x | (x << 8)) & 0x00FF00FF;
     x = (x | (x << 4)) & 0x0F0F0F0F;

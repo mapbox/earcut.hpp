@@ -1,6 +1,7 @@
 #pragma once
 #include <earcut.hpp>
 
+#include <array>
 #include <memory>
 #include <vector>
 
@@ -25,11 +26,11 @@ public:
         indices_ = mapbox::earcut(polygon);
     }
 
-    auto indices() const {
+    std::vector<uint32_t> indices() const {
         return indices_;
     }
 
-    auto vertices() const {
+    Vertices vertices() const {
         return vertices_;
     }
 
