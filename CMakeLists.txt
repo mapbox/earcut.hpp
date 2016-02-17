@@ -6,19 +6,22 @@ option(EARCUT_BUILD_BENCH "Build the earcut benchmark program" ON)
 option(EARCUT_BUILD_VIZ "Build the earcut visualizer program" ON)
 
 # configure optimization
-if (CMAKE_BUILD_TYPE EQUAL "DEBUG")
-    set(OPTIMIZATION_FLAGS "-O0")
-    # optional: -fsanitize=signed-integer-overflow,undefined
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(OPTIMIZATION_FLAGS "-O0") # optional: -fsanitize=signed-integer-overflow,undefined
     set(IS_DEBUG true)
+    message("-- Configuring debug build")
 else()
     set(OPTIMIZATION_FLAGS "-O3")
     set(IS_DEBUG false)
+    message("-- Configuring release build")
 endif()
 
 # check if clang or gcc
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    set(CPP14_FLAG "-std=c++1y") # clang 3.4 compat
     set(CXX_COMPILER_IS_GNU_OR_CLANG true)
 elseif (CMAKE_COMPILER_IS_GNUCXX)
+    set(CPP14_FLAG "-std=c++14")
     set(CXX_COMPILER_IS_GNU_OR_CLANG true)
 endif()
 if ("${CMAKE_CC_COMPILER_ID}" STREQUAL "Clang")
@@ -38,7 +41,7 @@ if(MSVC)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W3")
     endif()
 elseif(CXX_COMPILER_IS_GNU_OR_CLANG)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pipe -std=c++1y -Werror")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CPP14_FLAG} -pipe -Werror")
     # optional: -pedantic -Wconversion -Wall -Wextra
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OPTIMIZATION_FLAGS}")
     # optional: -march=native (builds with the optimizations available on the build machine (only for local use!))
