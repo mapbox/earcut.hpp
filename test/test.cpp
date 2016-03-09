@@ -140,6 +140,7 @@ int main() {
     areaTest<int>("hilbert", mapbox::fixtures::hilbert, 1023);
     areaTest<int>("issue45", mapbox::fixtures::issue45, 10, 1e-14, 0.094);
     areaTest<short>("park", mapbox::fixtures::park);
+    areaTest<double>("eberly6", mapbox::fixtures::eberly_6, 1428, 1e-13);
 
     return 0;
 }

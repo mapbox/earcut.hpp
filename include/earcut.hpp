@@ -482,10 +482,13 @@ Earcut<N>::findHoleBridge(Node* hole, Node* outerNode) {
     double tanCur = 0;
 
     p = m->next;
+    double mx = m->x;
+    double my = m->y;
 
     while (p != stop) {
-        if (hx >= p->x && p->x >= m->x &&
-                pointInTriangle(hy < m->y ? hx : qx, hy, m->x, m->y, hy < m->y ? qx : hx, hy, p->x, p->y)) {
+        if (hx >= p->x && p->x >= mx &&
+            pointInTriangle(hy < my ? hx : qx, hy, mx, my, hy < my ? qx : hx, hy, p->x, p->y)) {
+
             tanCur = std::abs(hy - p->y) / (hx - p->x); // tangential
 
             if ((tanCur < tanMin || (tanCur == tanMin && p->x > m->x)) && locallyInside(p, hole)) {

@@ -60,6 +60,7 @@ extern const IntegerPolygon water2;
 extern const IntegerPolygon water3;
 extern const IntegerPolygon water3b;
 extern const IntegerPolygon water4;
+extern const DoublePolygon eberly_6;
 
 }
 }
