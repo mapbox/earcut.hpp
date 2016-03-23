@@ -645,8 +645,8 @@ bool Earcut<N>::pointInTriangle(double ax, double ay, double bx, double by, doub
 // check if a diagonal between two polygon nodes is valid (lies in polygon interior)
 template <typename N>
 bool Earcut<N>::isValidDiagonal(Node* a, Node* b) {
-    return equals(a, b) || (a->next->i != b->i && a->prev->i != b->i && !intersectsPolygon(a, b) &&
-           locallyInside(a, b) && locallyInside(b, a) && middleInside(a, b));
+    return a->next->i != b->i && a->prev->i != b->i && !intersectsPolygon(a, b) &&
+           locallyInside(a, b) && locallyInside(b, a) && middleInside(a, b);
 }
 
 // signed area of a triangle
@@ -664,6 +664,8 @@ bool Earcut<N>::equals(const Node* p1, const Node* p2) {
 // check if two segments intersect
 template <typename N>
 bool Earcut<N>::intersects(const Node* p1, const Node* q1, const Node* p2, const Node* q2) {
+    if ((equals(p1, q1) && equals(p2, q2)) ||
+        (equals(p1, q2) && equals(p2, q1))) return true;
     return area(p1, q1, p2) > 0 != area(p1, q1, q2) > 0 &&
            area(p2, q2, p1) > 0 != area(p2, q2, q1) > 0;
 }

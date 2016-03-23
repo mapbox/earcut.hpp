@@ -120,7 +120,7 @@ int main() {
     areaTest<int>("water3", mapbox::fixtures::water3, 197);
     areaTest<int>("water3b", mapbox::fixtures::water3b, 25);
     areaTest<int>("water4", mapbox::fixtures::water4, 705);
-    areaTest<int>("water_huge", mapbox::fixtures::water_huge, 5173, 0.0011, 0.0002);
+    areaTest<int>("water_huge", mapbox::fixtures::water_huge, 5174, 0.0011, 0.0002);
     areaTest<int>("water_huge2", mapbox::fixtures::water_huge2, 4461, 0.0028, 0.00015);
     areaTest<int>("degenerate", mapbox::fixtures::degenerate, 0);
     areaTest<int>("bad_hole", mapbox::fixtures::bad_hole, 42, 0.042, 0.0022);
@@ -144,6 +144,7 @@ int main() {
     areaTest<double>("issue52", mapbox::fixtures::issue52, 109, 1e-13);
     areaTest<double>("eberly3", mapbox::fixtures::eberly_3, 73, 1e-13);
     areaTest<double>("shared-points", mapbox::fixtures::shared_points, 4);
+    areaTest<double>("bad-diagonals", mapbox::fixtures::bad_diagonals, 7);
 
     return 0;
 }

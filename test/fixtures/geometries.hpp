@@ -35,6 +35,7 @@ using DoublePolygon = Polygon<DoublePoint>;
 
 
 extern const ShortPolygon park;
+extern const IntegerPolygon bad_diagonals;
 extern const IntegerPolygon bad_hole;
 extern const IntegerPolygon building;
 extern const IntegerPolygon degenerate;
