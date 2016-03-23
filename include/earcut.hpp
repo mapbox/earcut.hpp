@@ -468,6 +468,10 @@ Earcut<N>::findHoleBridge(Node* hole, Node* outerNode) {
           double x = p->x + (hy - p->y) * (p->next->x - p->x) / (p->next->y - p->y);
           if (x <= hx && x > qx) {
             qx = x;
+            if (x == hx) {
+                if (hy == p->y) return p;
+                if (hy == p->next->y) return p->next;
+            }
             m = p->x < p->next->x ? p : p->next;
           }
         }
@@ -476,7 +480,7 @@ Earcut<N>::findHoleBridge(Node* hole, Node* outerNode) {
 
     if (!m) return 0;
 
-    if (hole->x == m->x) return m->prev;
+    if (hx == qx) return m->prev;
 
     // look for points inside the triangle of hole Vertex, segment intersection and endpoint;
     // if there are no points found, we have a valid connection;

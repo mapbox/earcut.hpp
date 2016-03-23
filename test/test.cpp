@@ -142,6 +142,7 @@ int main() {
     areaTest<short>("park", mapbox::fixtures::park);
     areaTest<double>("eberly6", mapbox::fixtures::eberly_6, 1429, 1e-13);
     areaTest<double>("issue52", mapbox::fixtures::issue52, 109, 1e-13);
+    areaTest<double>("eberly3", mapbox::fixtures::eberly_3, 73, 1e-13);
 
     return 0;
 }

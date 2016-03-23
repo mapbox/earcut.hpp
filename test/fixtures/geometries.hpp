@@ -39,6 +39,7 @@ extern const IntegerPolygon bad_hole;
 extern const IntegerPolygon building;
 extern const IntegerPolygon degenerate;
 extern const DoublePolygon dude;
+extern const IntegerPolygon eberly_3;
 extern const DoublePolygon eberly_6;
 extern const IntegerPolygon empty_square;
 extern const IntegerPolygon hilbert;
