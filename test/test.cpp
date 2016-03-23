@@ -120,8 +120,8 @@ int main() {
     areaTest<int>("water3", mapbox::fixtures::water3, 197);
     areaTest<int>("water3b", mapbox::fixtures::water3b, 25);
     areaTest<int>("water4", mapbox::fixtures::water4, 705);
-    areaTest<int>("water_huge", mapbox::fixtures::water_huge, 5159, 0.008, 0.0002);
-    areaTest<int>("water_huge2", mapbox::fixtures::water_huge2, 4456, 0.0019, 0.00015);
+    areaTest<int>("water_huge", mapbox::fixtures::water_huge, 5173, 0.0011, 0.0002);
+    areaTest<int>("water_huge2", mapbox::fixtures::water_huge2, 4459, 0.0028, 0.00015);
     areaTest<int>("degenerate", mapbox::fixtures::degenerate, 0);
     areaTest<int>("bad_hole", mapbox::fixtures::bad_hole, 42, 0.042, 0.0022);
     // allow libtess2 failure on this by providing infinity.
@@ -130,17 +130,18 @@ int main() {
     areaTest<double>("issue17", mapbox::fixtures::issue17, 11);
     areaTest<int>("steiner", mapbox::fixtures::steiner, 9);
     areaTest<double>("issue29", mapbox::fixtures::issue29, 40);
-    areaTest<int>("issue34", mapbox::fixtures::issue34, 138);
-    areaTest<int>("issue35", mapbox::fixtures::issue35, 841);
+    areaTest<int>("issue34", mapbox::fixtures::issue34, 139);
+    areaTest<int>("issue35", mapbox::fixtures::issue35, 844);
     areaTest<double>("self-touching", mapbox::fixtures::self_touching, 124, 3.4e-14, 0.002);
     areaTest<int>("outside-ring", mapbox::fixtures::outside_ring, 64);
     areaTest<int>("simplified-us-border", mapbox::fixtures::simplified_us_border, 120, 1e-14, 0.001);
     areaTest<int>("touching-holes", mapbox::fixtures::touching_holes, 57);
     areaTest<int>("hole-touching-outer", mapbox::fixtures::hole_touching_outer, 77);
-    areaTest<int>("hilbert", mapbox::fixtures::hilbert, 1023);
+    areaTest<int>("hilbert", mapbox::fixtures::hilbert, 1024);
     areaTest<int>("issue45", mapbox::fixtures::issue45, 10, 1e-14, 0.094);
     areaTest<short>("park", mapbox::fixtures::park);
-    areaTest<double>("eberly6", mapbox::fixtures::eberly_6, 1428, 1e-13);
+    areaTest<double>("eberly6", mapbox::fixtures::eberly_6, 1429, 1e-13);
+    areaTest<double>("issue52", mapbox::fixtures::issue52, 109, 1e-13);
 
     return 0;
 }

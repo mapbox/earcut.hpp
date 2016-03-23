@@ -42,7 +42,7 @@ hpp += 'extern const ShortPolygon park;\n';
 var integerPolygons = '';
 var doublePolygons = '';
 
-var base = 'test/js/test/fixtures';
+var base = '../earcut/test/fixtures';
 fs.readdirSync(base).filter(function (name) {
     return path.extname(name) === '.json';
 }).forEach(function (name) {

@@ -207,6 +207,11 @@ Earcut<N>::linkedList(const Ring& points, const bool clockwise) {
         for (i = len - 1; i >= 0; i--) last = insertNode(vertices + i, points[i], last);
     }
 
+    if (last && equals(last, last->next)) {
+        removeNode(last);
+        last = last->next;
+    }
+
     vertices += len;
 
     return last;
