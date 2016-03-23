@@ -53,6 +53,7 @@ extern const IntegerPolygon issue45;
 extern const IntegerPolygon issue52;
 extern const IntegerPolygon outside_ring;
 extern const DoublePolygon self_touching;
+extern const IntegerPolygon shared_points;
 extern const IntegerPolygon simplified_us_border;
 extern const IntegerPolygon steiner;
 extern const IntegerPolygon touching_holes;
