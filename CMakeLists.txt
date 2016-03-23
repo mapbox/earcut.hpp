@@ -17,7 +17,8 @@ else()
 endif()
 
 # check if clang or gcc
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+message("${CMAKE_CXX_COMPILER_ID}")
+if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang$")
     set(CPP14_FLAG "-std=c++1y") # clang 3.4 compat
     set(CXX_COMPILER_IS_GNU_OR_CLANG true)
 elseif (CMAKE_COMPILER_IS_GNUCXX)
