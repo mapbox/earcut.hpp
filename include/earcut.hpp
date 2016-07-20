@@ -90,8 +90,8 @@ private:
     class ObjectPool {
     public:
         ObjectPool() { }
-        ObjectPool(std::size_t blockSize) {
-            reset(blockSize);
+        ObjectPool(std::size_t blockSize_) {
+            reset(blockSize_);
         }
         ~ObjectPool() {
             clear();
