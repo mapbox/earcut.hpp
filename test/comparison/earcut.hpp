@@ -1,5 +1,5 @@
 #pragma once
-#include <earcut.hpp>
+#include <mapbox/earcut.hpp>
 
 #include <array>
 #include <memory>
