@@ -666,8 +666,8 @@ template <typename N>
 bool Earcut<N>::intersects(const Node* p1, const Node* q1, const Node* p2, const Node* q2) {
     if ((equals(p1, q1) && equals(p2, q2)) ||
         (equals(p1, q2) && equals(p2, q1))) return true;
-    return area(p1, q1, p2) > 0 != area(p1, q1, q2) > 0 &&
-           area(p2, q2, p1) > 0 != area(p2, q2, q1) > 0;
+    return (area(p1, q1, p2) > 0) != (area(p1, q1, q2) > 0) &&
+           (area(p2, q2, p1) > 0) != (area(p2, q2, q1) > 0);
 }
 
 // check if a polygon diagonal intersects any polygon segments
