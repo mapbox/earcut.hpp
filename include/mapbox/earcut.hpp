@@ -184,7 +184,7 @@ typename Earcut<N>::Node*
 Earcut<N>::linkedList(const Ring& points, const bool clockwise) {
     using Point = typename Ring::value_type;
     double sum = 0;
-    const int len = points.size();
+    const int len = static_cast<int>(points.size());
     int i, j;
     Point p1, p2;
     Node* last = nullptr;
