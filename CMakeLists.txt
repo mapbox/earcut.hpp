@@ -7,7 +7,7 @@ option(EARCUT_BUILD_VIZ "Build the earcut visualizer program" ON)
 
 # configure optimization
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(OPTIMIZATION_FLAGS "-O0") # optional: -fsanitize=signed-integer-overflow,undefined
+    set(OPTIMIZATION_FLAGS "-O0 -fsanitize=undefined")
     set(IS_DEBUG true)
     message("-- Configuring debug build")
 else()

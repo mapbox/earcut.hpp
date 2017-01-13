@@ -14,12 +14,12 @@ addons:
   apt:
     sources:
      - ubuntu-toolchain-r-test
-     - llvm-toolchain-precise-3.7
+     - llvm-toolchain-precise-3.8
      - george-edison55-precise-backports
     packages:
      - g++-4.9
      - gcc-4.9
-     - clang-3.7
+     - clang-3.8
      - cmake
      - cmake-data
      - xorg-dev
@@ -30,7 +30,7 @@ cache: apt
 
 before_script:
  - if [[ ${CXX} == "g++" ]]; then export CXX="g++-4.9" CC="gcc-4.9" ; fi
- - if [[ ${CXX} == "clang++" ]]; then export CXX="clang++-3.7" CC="clang-3.7" ; fi
+ - if [[ ${CXX} == "clang++" ]]; then export CXX="clang++-3.8" CC="clang-3.8" ; fi
 
 script:
  - mkdir ./build && cd ./build

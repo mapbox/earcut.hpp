@@ -70,8 +70,9 @@ void areaTest(const char *name, const Polygon &polygon, int expectedTriangles = 
         const auto &indices = tesselator.indices();
 
         const auto area = trianglesArea(vertices, indices);
-        const double deviation =
-            (expectedArea == 0 && area == 0) ? 0 : std::abs(area - expectedArea) / expectedArea;
+        const double deviation = (expectedArea == area) ? 0 :
+                expectedArea == 0 ? std::numeric_limits<double>::infinity() :
+                std::abs(area - expectedArea) / expectedArea;
 
         t.ok(deviation <= earcutDeviation, std::string{ "earcut deviation " } + formatPercent(deviation) +
                                                 " is less than " +
@@ -91,8 +92,9 @@ void areaTest(const char *name, const Polygon &polygon, int expectedTriangles = 
         const auto &indices = tesselator.indices();
 
         const auto area = trianglesArea(vertices, indices);
-        const double deviation =
-            (expectedArea == 0 && area == 0) ? 0 : std::abs(area - expectedArea) / expectedArea;
+        const double deviation = (expectedArea == area) ? 0 :
+                expectedArea == 0 ? std::numeric_limits<double>::infinity() :
+                std::abs(area - expectedArea) / expectedArea;
 
         t.ok(deviation <= libtess2Deviation, std::string{ "libtess2 deviation " } + formatPercent(deviation) +
                                                 " is less than " +
