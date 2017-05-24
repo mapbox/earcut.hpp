@@ -428,7 +428,7 @@ Earcut<N>::eliminateHoles(const Polygon& points, Node* outerNode) {
             queue.push_back(getLeftmost(list));
         }
     }
-    std::sort(queue.begin(), queue.end(), [this](const Node* a, const Node* b) {
+    std::sort(queue.begin(), queue.end(), [](const Node* a, const Node* b) {
         return a->x < b->x;
     });
 
