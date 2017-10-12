@@ -1,0 +1,28 @@
+os: Visual Studio 2017
+
+configuration:
+  - 2017
+  - 2015
+  - 2013
+
+platform:
+  - x86
+  - x64
+
+matrix:
+  fast_finish: true
+
+install:
+  - git submodule update --init
+
+build_script:
+  - set VS=12
+  - if "%configuration%"=="2017" (set VS=15)
+  - if "%configuration%"=="2015" (set VS=14)
+  - if "%configuration%"=="2013" (set VS=12)
+  - if not defined platform set platform=x64
+  - if "%platform%" EQU "x64" (set VS=%VS% Win64)
+  - cmake -H. -Bbuild -G"Visual Studio %VS%"
+  - cmake --build build --config Release
+  - call "build/Release/tests.exe"
+  - call "build/Release/bench.exe"
