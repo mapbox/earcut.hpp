@@ -1,4 +1,5 @@
 ## Earcut
+[![travis](https://travis-ci.org/mapbox/earcut.hpp.svg?branch=master)](https://travis-ci.org/mapbox/earcut.hpp) [![appveyor](https://ci.appveyor.com/api/projects/status/a1ysrqd69mqn7coo/branch/master?svg=true)](https://ci.appveyor.com/project/mrgreywater/earcut-hpp-8wm4o/branch/master)
 
 A C++ port of [earcut.js](https://github.com/mapbox/earcut), a fast, [header-only](https://github.com/mapbox/earcut.hpp/blob/master/include/earcut.hpp) polygon triangulation library.
 
@@ -43,13 +44,13 @@ namespace util {
 
 template <>
 struct nth<0, IntPoint> {
-    inline static int64_t get(const IntPoint &t) {
+    inline static auto get(const IntPoint &t) {
         return t.X;
     };
 };
 template <>
 struct nth<1, IntPoint> {
-    inline static int64_t get(const IntPoint &t) {
+    inline static auto get(const IntPoint &t) {
         return t.Y;
     };
 };
@@ -58,12 +59,12 @@ struct nth<1, IntPoint> {
 } // namespace mapbox
 ```
 
-<details><summary>Additional build instructions for test, benchmark and visualization:</summary>
-In case you just want to use the earcut triangulation library; copy and include the header file [```<earcut.hpp>```](https://github.com/mapbox/earcut.hpp/blob/master/include/earcut.hpp) in your project and follow the steps documented in the section [Usage](#usage).
+## Additional build instructions
+In case you just want to use the earcut triangulation library; copy and include the header file [`<earcut.hpp>`](https://github.com/mapbox/earcut.hpp/blob/master/include/earcut.hpp) in your project and follow the steps documented in the section [Usage](#usage).
 
 If you want to build the test, benchmark and visualization programs instead, follow these instructions:
 
-## Dependencies
+### Dependencies
 
 Before you continue, make sure to have the following tools and libraries installed:
  * git ([Ubuntu](https://help.ubuntu.com/lts/serverguide/git.html)/[Windows/Other](http://git-scm.com/downloads))
@@ -73,7 +74,7 @@ Before you continue, make sure to have the following tools and libraries install
 
 Note: On some operating systems such as Windows, manual steps are required to add cmake and [git](http://blog.countableset.ch/2012/06/07/adding-git-to-windows-7-path/) to your PATH environment variable.
 
-## Manual compilation
+### Manual compilation
 
 ```bash
 git clone --recursive https://github.com/mapbox/earcut.hpp.git
@@ -87,7 +88,7 @@ make
 # ./viz
 ```
 
-## [Visual Studio](https://www.visualstudio.com/), [Eclipse](https://eclipse.org/), [XCode](https://developer.apple.com/xcode/), ...
+### [Visual Studio](https://www.visualstudio.com/), [Eclipse](https://eclipse.org/), [XCode](https://developer.apple.com/xcode/), ...
 
 ```batch
 git clone --recursive https://github.com/mapbox/earcut.hpp.git
@@ -99,7 +100,7 @@ cmake .. -G "Visual Studio 14 2015"
 ```
 After completion, open the generated project with your IDE.
 
-## [CLion](https://www.jetbrains.com/clion/)
+### [CLion](https://www.jetbrains.com/clion/)
 
 Import the project from https://github.com/mapbox/earcut.hpp.git and you should be good to go!
 </details>
