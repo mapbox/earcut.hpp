@@ -1,12 +1,16 @@
 ## Earcut
-[![travis](https://travis-ci.org/mapbox/earcut.hpp.svg?branch=master)](https://travis-ci.org/mapbox/earcut.hpp) [![appveyor](https://ci.appveyor.com/api/projects/status/a1ysrqd69mqn7coo/branch/master?svg=true)](https://ci.appveyor.com/project/mrgreywater/earcut-hpp-8wm4o/branch/master)
 
-A C++ port of [earcut.js](https://github.com/mapbox/earcut), a fast, [header-only](https://github.com/mapbox/earcut.hpp/blob/master/include/earcut.hpp) polygon triangulation library.
+A C++ port of [earcut.js](https://github.com/mapbox/earcut), a fast, [header-only](https://github.com/mapbox/earcut.hpp/blob/master/include/mapbox/earcut.hpp) polygon triangulation library.
+
+[![travis](https://travis-ci.org/mapbox/earcut.hpp.svg?branch=master)](https://travis-ci.org/mapbox/earcut.hpp) 
+[![appveyor](https://ci.appveyor.com/api/projects/status/a1ysrqd69mqn7coo/branch/master?svg=true)](https://ci.appveyor.com/project/mrgreywater/earcut-hpp-8wm4o/branch/master)
+[![Average time to resolve an issue](http://isitmaintained.com/badge/resolution/mapbox/earcut.hpp.svg)](http://isitmaintained.com/project/mapbox/earcut.hpp "Average time to resolve an issue")
+[![Percentage of issues still open](http://isitmaintained.com/badge/open/mapbox/earcut.hpp.svg)](http://isitmaintained.com/project/mapbox/earcut.hpp "Percentage of issues still open")
+[![](https://img.shields.io/badge/simply-awesome-brightgreen.svg)](https://github.com/mourner/projects)
 
 The library implements a modified ear slicing algorithm, optimized by [z-order curve](http://en.wikipedia.org/wiki/Z-order_curve) hashing and extended to handle holes, twisted polygons, degeneracies and self-intersections in a way that doesn't _guarantee_ correctness of triangulation, but attempts to always produce acceptable results for practical data like geographical shapes.
 
 It's based on ideas from [FIST: Fast Industrial-Strength Triangulation of Polygons](http://www.cosy.sbg.ac.at/~held/projects/triang/triang.html) by Martin Held and [Triangulation by Ear Clipping](http://www.geometrictools.com/Documentation/TriangulationByEarClipping.pdf) by David Eberly.
-
 
 ## Usage
 
@@ -60,7 +64,7 @@ struct nth<1, IntPoint> {
 ```
 
 ## Additional build instructions
-In case you just want to use the earcut triangulation library; copy and include the header file [`<earcut.hpp>`](https://github.com/mapbox/earcut.hpp/blob/master/include/earcut.hpp) in your project and follow the steps documented in the section [Usage](#usage).
+In case you just want to use the earcut triangulation library; copy and include the header file [`<earcut.hpp>`](https://github.com/mapbox/earcut.hpp/blob/master/include/mapbox/earcut.hpp) in your project and follow the steps documented in the section [Usage](#usage).
 
 If you want to build the test, benchmark and visualization programs instead, follow these instructions:
 
@@ -103,7 +107,6 @@ After completion, open the generated project with your IDE.
 ### [CLion](https://www.jetbrains.com/clion/)
 
 Import the project from https://github.com/mapbox/earcut.hpp.git and you should be good to go!
-</details>
 
 ## Status
 
