@@ -4,6 +4,7 @@ A C++ port of [earcut.js](https://github.com/mapbox/earcut), a fast, [header-onl
 
 [![travis](https://travis-ci.org/mapbox/earcut.hpp.svg?branch=master)](https://travis-ci.org/mapbox/earcut.hpp) 
 [![appveyor](https://ci.appveyor.com/api/projects/status/a1ysrqd69mqn7coo/branch/master?svg=true)](https://ci.appveyor.com/project/mrgreywater/earcut-hpp-8wm4o/branch/master)
+[![Coverage Status](https://coveralls.io/repos/github/mapbox/earcut.hpp/badge.svg?branch=master)](https://coveralls.io/github/mapbox/earcut.hpp?branch=master)
 [![Average time to resolve an issue](http://isitmaintained.com/badge/resolution/mapbox/earcut.hpp.svg)](http://isitmaintained.com/project/mapbox/earcut.hpp "Average time to resolve an issue")
 [![Percentage of issues still open](http://isitmaintained.com/badge/open/mapbox/earcut.hpp.svg)](http://isitmaintained.com/project/mapbox/earcut.hpp "Percentage of issues still open")
 [![](https://img.shields.io/badge/simply-awesome-brightgreen.svg)](https://github.com/mourner/projects)

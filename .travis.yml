@@ -25,16 +25,31 @@ addons:
      - xorg-dev
      - libgl1-mesa-glx
      - libgl1-mesa-dev
+     - lcov
 
 cache: apt
 
+install:
+ - gem install coveralls-lcov
+
 before_script:
- - if [[ ${CXX} == "g++" ]]; then export CXX="g++-4.9" CC="gcc-4.9" ; fi
+ - if [[ ${CXX} == "g++" ]]; then 
+       export CXX="g++-4.9" CC="gcc-4.9" ; 
+       if [[ ${BUILDTYPE} == "Debug" ]]; then
+           export COVERAGE="1" ;
+           export CXXFLAGS="--coverage" ;
+       fi
+   fi
  - if [[ ${CXX} == "clang++" ]]; then export CXX="clang++-3.8" CC="clang-3.8" ; fi
 
 script:
  - mkdir ./build && cd ./build
  - cmake .. -DCMAKE_BUILD_TYPE=${BUILDTYPE}
- - make -j4
+ - make -j2
  - ./tests
+ - if [[ ${COVERAGE} == "1" ]]; then
+       lcov -q --directory . --base-directory ../include/mapbox --no-external --capture --output-file coverage.info ;
+       lcov --list coverage.info ;
+       coveralls-lcov --repo-token ${COVERALLS_TOKEN} coverage.info ;
+   fi
  - ./bench
