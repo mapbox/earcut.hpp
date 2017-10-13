@@ -11,6 +11,14 @@ env:
  - BUILDTYPE: Release
 
 addons:
+  coverity_scan:
+    project:
+      name: "${TRAVIS_REPO_SLUG}"
+      description: "Build submitted via Travis CI"
+    notification_email: 4f7f3a820da643d180486972f68a251f.protect@whoisguard.com
+    build_command_prepend: "cov-configure --comptype g++ --compiler g++-4.9 --template && cd build"
+    build_command: "make -j2"
+    branch_pattern: master
   apt:
     sources:
      - ubuntu-toolchain-r-test
@@ -29,22 +37,26 @@ addons:
 
 cache: apt
 
+before_install:
+ - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
+
 install:
  - gem install coveralls-lcov
 
 before_script:
  - if [[ ${CXX} == "g++" ]]; then 
        export CXX="g++-4.9" CC="gcc-4.9" ; 
-       if [[ ${BUILDTYPE} == "Debug" ]]; then
+       if [[ ${COVERALLS_TOKEN} != "" && ${BUILDTYPE} == "Debug" ]]; then
            export COVERAGE="1" ;
            export CXXFLAGS="--coverage" ;
+           echo "Coverage enabled." ;
        fi
    fi
  - if [[ ${CXX} == "clang++" ]]; then export CXX="clang++-3.8" CC="clang-3.8" ; fi
+ - ( mkdir -p build && cd build ; cmake .. -DCMAKE_BUILD_TYPE=${BUILDTYPE} )
 
 script:
- - mkdir ./build && cd ./build
- - cmake .. -DCMAKE_BUILD_TYPE=${BUILDTYPE}
+ - cd ${TRAVIS_BUILD_DIR}/build
  - make -j2
  - ./tests
  - if [[ ${COVERAGE} == "1" ]]; then
