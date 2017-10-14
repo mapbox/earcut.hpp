@@ -2,66 +2,112 @@ language: cpp
 
 sudo: false
 
-compiler:
- - clang
- - gcc
-
-env:
- - BUILDTYPE: Debug
- - BUILDTYPE: Release
-
-addons:
-  coverity_scan:
-    project:
-      name: "${TRAVIS_REPO_SLUG}"
-      description: "Build submitted via Travis CI"
-    notification_email: 4f7f3a820da643d180486972f68a251f.protect@whoisguard.com
-    build_command_prepend: "cov-configure --comptype g++ --compiler g++-4.9 --template && cd build"
-    build_command: "make -j2"
-    branch_pattern: master
-  apt:
-    sources:
-     - ubuntu-toolchain-r-test
-     - llvm-toolchain-precise-3.8
-     - george-edison55-precise-backports
-    packages:
-     - g++-4.9
-     - gcc-4.9
-     - clang-3.8
-     - cmake
-     - cmake-data
-     - xorg-dev
-     - libgl1-mesa-glx
-     - libgl1-mesa-dev
-     - lcov
-
 cache: apt
 
-before_install:
- - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
-
-install:
- - gem install coveralls-lcov
-
 before_script:
- - if [[ ${CXX} == "g++" ]]; then 
-       export CXX="g++-4.9" CC="gcc-4.9" ; 
-       if [[ ${COVERALLS_TOKEN} != "" && ${BUILDTYPE} == "Debug" ]]; then
-           export COVERAGE="1" ;
-           export CXXFLAGS="--coverage" ;
-           echo "Coverage enabled." ;
-       fi
-   fi
- - if [[ ${CXX} == "clang++" ]]; then export CXX="clang++-3.8" CC="clang-3.8" ; fi
- - ( mkdir -p build && cd build ; cmake .. -DCMAKE_BUILD_TYPE=${BUILDTYPE} )
+  - if [[ ${CXX_COMPILER} != "" ]]; then export CXX=${CXX_COMPILER} ; fi
+  - if [[ ${CC_COMPILER} != "" ]]; then export CC=${CC_COMPILER} ; fi
+  - if [[ ${COMPILER_FLAGS} != "" ]]; then export CXXFLAGS=${COMPILER_FLAGS} ; fi
+  - ( mkdir -p build && cd build ; cmake .. -DCMAKE_BUILD_TYPE=${BUILDTYPE} )
 
 script:
- - cd ${TRAVIS_BUILD_DIR}/build
- - make -j2
- - ./tests
- - if [[ ${COVERAGE} == "1" ]]; then
-       lcov -q --directory . --base-directory ../include/mapbox --no-external --capture --output-file coverage.info ;
-       lcov --list coverage.info ;
-       coveralls-lcov --repo-token ${COVERALLS_TOKEN} coverage.info ;
-   fi
- - ./bench
+  - cd ${TRAVIS_BUILD_DIR}/build
+  - make -j2
+  - ./tests
+  - if [[ ${COVERAGE} == "1" ]]; then
+      lcov -q --directory . --base-directory ../include/mapbox --no-external --capture --output-file coverage.info ;
+      lcov --list coverage.info ;
+      coveralls-lcov --repo-token ${COVERALLS_TOKEN} coverage.info ;
+    fi
+  - ./bench
+
+addons:
+  apt:
+    sources: &shared_linux_sources
+      - ubuntu-toolchain-r-test
+      - george-edison55-precise-backports
+    packages: &shared_linux_packages
+      - cmake
+      - cmake-data
+      - xorg-dev
+      - libgl1-mesa-glx
+      - libgl1-mesa-dev
+
+matrix:
+  fast_finish: true
+  include:
+    # clang debug
+    - os: linux
+      env: BUILDTYPE=Debug CXX_COMPILER=clang++-3.8 CC_COMPILER=clang-3.8
+      compiler: clang
+      addons:
+        apt:
+          sources:
+            - *shared_linux_sources
+            - llvm-toolchain-precise-3.8
+          packages:
+            - *shared_linux_packages
+            - clang-3.8
+
+    # clang release
+    - os: linux
+      env: BUILDTYPE=Release CXX_COMPILER=clang++-3.8 CC_COMPILER=clang-3.8
+      compiler: clang
+      addons:
+        apt:
+          sources:
+            - *shared_linux_sources
+            - llvm-toolchain-precise-3.8
+          packages:
+            - *shared_linux_packages
+            - clang-3.8
+
+    # gnu debug with coverage
+    - os: linux
+      env: BUILDTYPE=Debug CXX_COMPILER=g++-4.9 CC_COMPILER=gcc-4.9 COVERAGE=1 COMPILER_FLAGS=--coverage
+      compiler: gcc
+      addons:
+        apt:
+          sources:
+            - *shared_linux_sources
+          packages:
+            - *shared_linux_packages
+            - &gnu_packages [g++-4.9, gcc-4.9]
+            - lcov
+      install:
+        - gem install coveralls-lcov
+
+    # gnu release with coverity
+    - os: linux
+      env: BUILDTYPE=Release CXX_COMPILER=g++-4.9 CC_COMPILER=gcc-4.9
+      compiler: gcc
+      addons:
+        coverity_scan:
+          project:
+            name: "${TRAVIS_REPO_SLUG}"
+            description: "Build submitted via Travis CI"
+            notification_email: 4f7f3a820da643d180486972f68a251f.protect@whoisguard.com
+            build_command_prepend: "cov-configure --comptype g++ --compiler g++-4.9 --template && cd build"
+            build_command: "make -j2"
+            branch_pattern: master
+        apt:
+          sources:
+            - *shared_linux_sources
+          packages:
+            - *shared_linux_packages
+            - *gnu_packages
+      before_install:
+        - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
+
+    # osx gcc
+    - os: osx
+      osx_image: xcode8.3
+      env: BUILDTYPE=Release CXX_COMPILER=g++ CC_COMPILER=gcc
+      compiler: gcc
+    
+    # osx clang
+    - os: osx
+      osx_image: xcode8.3
+      env: BUILDTYPE=Release CXX_COMPILER=clang++ CC_COMPILER=clang
+      compiler: clang
+      
