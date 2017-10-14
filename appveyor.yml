@@ -1,13 +1,12 @@
 os: Visual Studio 2017
 
-configuration:
-  - 2017
-  - 2015
-  - 2013
-
-platform:
-  - x86
-  - x64
+environment:
+  matrix:
+    - GENERATOR: "Visual Studio 15 2017"
+    - GENERATOR: "Visual Studio 15 2017 Win64"
+    - GENERATOR: "Visual Studio 14 2015 Win64"
+    - GENERATOR: "Visual Studio 12 2013 Win64"
+    - GENERATOR: "MinGW Makefiles"
 
 matrix:
   fast_finish: true
@@ -16,13 +15,9 @@ install:
   - git submodule update --init
 
 build_script:
-  - set VS=12
-  - if "%configuration%"=="2017" (set VS=15)
-  - if "%configuration%"=="2015" (set VS=14)
-  - if "%configuration%"=="2013" (set VS=12)
-  - if not defined platform set platform=x64
-  - if "%platform%" EQU "x64" (set VS=%VS% Win64)
-  - cmake -H. -Bbuild -G"Visual Studio %VS%"
+  - cmake -H. -Bbuild -G"%GENERATOR%"
   - cmake --build build --config Release
+
+test_script:
   - call "build/Release/tests.exe"
   - call "build/Release/bench.exe"
