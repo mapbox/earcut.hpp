@@ -9,6 +9,7 @@ before_script:
   - if [[ ${CC_COMPILER} != "" ]]; then export CC=${CC_COMPILER} ; fi
   - if [[ ${COMPILER_FLAGS} != "" ]]; then export CXXFLAGS=${COMPILER_FLAGS} ; fi
   - ( mkdir -p build && cd build ; cmake .. -DCMAKE_BUILD_TYPE=${BUILDTYPE} )
+  - if [[ -n $COVERITY_SCAN_PROJECT_NAME ]] ; then curl -s 'https://scan.coverity.com/scripts/travisci_build_coverity_scan.sh' | bash || true ; fi
 
 script:
   - cd ${TRAVIS_BUILD_DIR}/build
@@ -79,17 +80,17 @@ matrix:
 
     # gnu release with coverity
     - os: linux
-      env: BUILDTYPE=Release CXX_COMPILER=g++-4.9 CC_COMPILER=gcc-4.9
+      env: 
+        - BUILDTYPE=Release 
+        - CXX_COMPILER=g++-4.9 
+        - CC_COMPILER=gcc-4.9
+        - COVERITY_SCAN_PROJECT_NAME="${TRAVIS_REPO_SLUG}"
+        - COVERITY_SCAN_BRANCH_PATTERN="master"
+        - COVERITY_SCAN_NOTIFICATION_EMAIL="4f7f3a820da643d180486972f68a251f.protect@whoisguard.com"
+        - COVERITY_SCAN_BUILD_COMMAND_PREPEND="cov-configure --comptype g++ --compiler g++-4.9 --template && cd build"
+        - COVERITY_SCAN_BUILD_COMMAND="make -j2"
       compiler: gcc
       addons:
-        coverity_scan:
-          project:
-            name: "${TRAVIS_REPO_SLUG}"
-            description: "Build submitted via Travis CI"
-            notification_email: 4f7f3a820da643d180486972f68a251f.protect@whoisguard.com
-            build_command_prepend: "cov-configure --comptype g++ --compiler g++-4.9 --template && cd build"
-            build_command: "make -j2"
-            branch_pattern: master
         apt:
           sources:
             - *shared_linux_sources
