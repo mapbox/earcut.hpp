@@ -8,8 +8,8 @@ before_script:
   - if [[ ${CXX_COMPILER} != "" ]]; then export CXX=${CXX_COMPILER} ; fi
   - if [[ ${CC_COMPILER} != "" ]]; then export CC=${CC_COMPILER} ; fi
   - if [[ ${COMPILER_FLAGS} != "" ]]; then export CXXFLAGS=${COMPILER_FLAGS} ; fi
-  - ( mkdir -p build && cd build ; cmake .. -DCMAKE_BUILD_TYPE=${BUILDTYPE} )
-  - if [[ -n $COVERITY_SCAN_PROJECT_NAME ]] ; then curl -s 'https://scan.coverity.com/scripts/travisci_build_coverity_scan.sh' | bash || true ; fi
+  - ( mkdir -p build && cd build ; cmake .. -DCMAKE_BUILD_TYPE=${BUILDTYPE} -DEARCUT_WARNING_IS_ERROR=ON )
+  - if [[ -n $COVERITY_SCAN_TOKEN && -n $COVERITY_SCAN_PROJECT_NAME ]] ; then curl -s 'https://scan.coverity.com/scripts/travisci_build_coverity_scan.sh' | bash || true ; fi
 
 script:
   - cd ${TRAVIS_BUILD_DIR}/build

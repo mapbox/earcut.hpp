@@ -25,7 +25,7 @@ static bool dirty = true;
 static int shapeIndex = 0;
 const static int totalShapes = 27;
 
-static int tesselator = 0;
+static std::size_t tesselator = 0;
 const static int totalTesselators = 2;
 const static std::array<std::string, totalTesselators> tesselatorNames = {{ "earcut", "libtess2" }};
 
@@ -52,6 +52,8 @@ struct Shape {
         midY = static_cast<int>(minY + dimY / 2);
         ext = static_cast<int>(1.10 * (std::max)(dimX, dimY) / 2);
     }
+
+    Shape<T> & operator=(const Shape<T>&) = delete;
 
     const std::vector<std::array<T, 2>> vertices;
     const std::vector<uint32_t> indices;

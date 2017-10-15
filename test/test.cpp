@@ -1,7 +1,7 @@
 #include "comparison/earcut.hpp"
 #include "comparison/libtess2.hpp"
-#include "tap.hpp"
 
+#include "tap.hpp"
 #include "fixtures/geometries.hpp"
 
 #include <iomanip>
@@ -57,7 +57,7 @@ std::string formatPercent(double num) {
 }
 
 template <typename Coord, typename Polygon>
-void areaTest(const char *name, const Polygon &polygon, int expectedTriangles = 0, double earcutDeviation = 1e-14, double libtess2Deviation = 0.000001) {
+void areaTest(const char *name, const Polygon &polygon, std::size_t expectedTriangles = 0, double earcutDeviation = 1e-14, double libtess2Deviation = 0.000001) {
     Tap::Test t(name);
 
     const auto expectedArea = polygonArea(polygon);

@@ -22,6 +22,8 @@ public:
         }
     }
 
+    EarcutTesselator & operator=(const EarcutTesselator&) = delete;
+
     void run() {
         indices_ = mapbox::earcut(polygon);
     }

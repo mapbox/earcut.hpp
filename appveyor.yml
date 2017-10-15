@@ -23,7 +23,7 @@ install:
   - if not "%CXX_PATH%"=="" (set "PATH=%PATH%;%CXX_PATH%")
 
 build_script:
-  - cmake -H. -Bbuild -G"%GENERATOR%"
+  - cmake -H. -Bbuild -G"%GENERATOR%" -DEARCUT_WARNING_IS_ERROR=ON
   - cmake --build build --config %configuration%
 
 test_script:

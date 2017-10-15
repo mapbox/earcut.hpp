@@ -1,5 +1,6 @@
 #include "comparison/earcut.hpp"
 #include "comparison/libtess2.hpp"
+
 #include "fixtures/geometries.hpp"
 
 #include <iostream>
@@ -9,8 +10,8 @@
 
 template <template <typename, typename> class Tesselator, typename Coord, typename Polygon>
 double bench(const Polygon &polygon) {
-    std::vector<uint64_t> runs;
-    uint64_t total = 0;
+    std::vector<int64_t> runs;
+    int64_t total = 0;
     uint32_t warmup = 0;
 
     Tesselator<Coord, Polygon> tesselator { polygon };

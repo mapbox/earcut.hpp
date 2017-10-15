@@ -4,24 +4,15 @@ project(earcut_hpp)
 option(EARCUT_BUILD_TESTS "Build the earcut test program" ON)
 option(EARCUT_BUILD_BENCH "Build the earcut benchmark program" ON)
 option(EARCUT_BUILD_VIZ "Build the earcut visualizer program" ON)
-
-# setup compiler flags
-set(CMAKE_CXX_STANDARD 11)
-if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang$" OR CMAKE_COMPILER_IS_GNUCXX)
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=undefined")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pipe -Werror")
-    # optional: -pedantic -Wconversion -Wall -Wextra
-    # optional: -march=native (builds with the optimizations available on the build machine (only for local use!))
-endif()
+option(EARCUT_WARNING_IS_ERROR "Treat warnings as errors" OFF)
 
 # dependencies
-set (EARCUT_INCLUDE_DIRS "")
 if (EARCUT_BUILD_VIZ)
     # OpenGL
     # linux: xorg-dev libgl1-mesa-glx libgl1-mesa-dev
     # windows: in the windows sdk
     find_package(OpenGL REQUIRED)
-    list(APPEND EARCUT_INCLUDE_DIRS ${OPENGL_INCLUDE_DIRS})
+    include_directories(SYSTEM ${OPENGL_INCLUDE_DIRS})
 
     # GLFW3
     if(EXISTS "${PROJECT_SOURCE_DIR}/.gitmodules")
@@ -37,14 +28,27 @@ if (EARCUT_BUILD_VIZ)
     set(GLFW_BUILD_DOCS OFF CACHE BOOL "Build the GLFW documentation" FORCE)
     set(GLFW_INSTALL OFF CACHE BOOL "Generate installation target" FORCE)
     add_subdirectory(glfw)
-    list(APPEND EARCUT_INCLUDE_DIRS "glfw/include")
     set(GLFW_LIBS glfw ${GLFW_LIBRARIES})
+    include_directories(SYSTEM "glfw/include")
+endif()
+
+# setup compiler flags for earcut
+set(CMAKE_CXX_STANDARD 11)
+if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang$" OR CMAKE_COMPILER_IS_GNUCXX)
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=undefined")
+    add_compile_options("-pipe" "-Wall" "-Wextra" "-Wconversion" "-Wpedantic")
+    if (EARCUT_WARNING_IS_ERROR)
+        add_compile_options("-Werror")
+    endif()
+    # optional: -march=native (builds with the optimizations available on the build machine (only for local use!))
+elseif(MSVC)
+    if (EARCUT_WARNING_IS_ERROR)
+        add_compile_options("/WX")
+    endif()
 endif()
 
 # earcut.hpp
-list(APPEND EARCUT_INCLUDE_DIRS "include")
-
-include_directories(${EARCUT_INCLUDE_DIRS})
+include_directories("include")
 
 file(GLOB FIXTURE_SOURCE_FILES test/fixtures/*.cpp test/fixtures/*.hpp)
 source_group(fixtures FILES ${FIXTURE_SOURCE_FILES})
@@ -56,7 +60,9 @@ file(GLOB LIBTESS2_SOURCE_FILES test/comparison/libtess2/*.c test/comparison/lib
 source_group(comparison\\libtess2 FILES ${LIBTESS2_SOURCE_FILES})
 
 if (MSVC)
-    set_source_files_properties(test/comparison/libtess2/sweep.c PROPERTIES COMPILE_FLAGS "/wd4244")
+    set_source_files_properties(${LIBTESS2_SOURCE_FILES} PROPERTIES COMPILE_FLAGS "/wd4244 /wd4267")
+else()
+    set_source_files_properties(${LIBTESS2_SOURCE_FILES} PROPERTIES COMPILE_FLAGS "-w")
 endif()
 
 set(COMMON_SOURCE_FILES ${LIBTESS2_SOURCE_FILES} ${FIXTURE_SOURCE_FILES} ${COMPARISON_SOURCE_FILES})
