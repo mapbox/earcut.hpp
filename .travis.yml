@@ -4,12 +4,16 @@ sudo: false
 
 cache: apt
 
+before_install:
+  - if [[ ${COVERITY_SCAN} == "1" ]]; then echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca- ; fi
+
+install:
+  - if [[ ${COVERAGE} == "1" ]]; then gem install coveralls-lcov ; export CXXFLAGS=--coverage ; fi
+
 before_script:
-  - if [[ ${CXX_COMPILER} != "" ]]; then export CXX=${CXX_COMPILER} ; fi
-  - if [[ ${CC_COMPILER} != "" ]]; then export CC=${CC_COMPILER} ; fi
-  - if [[ ${COMPILER_FLAGS} != "" ]]; then export CXXFLAGS=${COMPILER_FLAGS} ; fi
+  - eval "${MATRIX_EVAL}"
   - ( mkdir -p build && cd build ; cmake .. -DCMAKE_BUILD_TYPE=${BUILDTYPE} -DEARCUT_WARNING_IS_ERROR=ON )
-  - if [[ -n $COVERITY_SCAN_TOKEN && -n $COVERITY_SCAN_PROJECT_NAME ]] ; then curl -s 'https://scan.coverity.com/scripts/travisci_build_coverity_scan.sh' | bash || true ; fi
+  - if [[ -n $COVERITY_SCAN_TOKEN && ${COVERITY_SCAN} == "1" ]] ; then curl -s 'https://scan.coverity.com/scripts/travisci_build_coverity_scan.sh' | bash || true ; fi
 
 script:
   - cd ${TRAVIS_BUILD_DIR}/build
@@ -24,91 +28,90 @@ script:
 
 addons:
   apt:
-    sources: &shared_linux_sources
-      - ubuntu-toolchain-r-test
-      - george-edison55-precise-backports
     packages: &shared_linux_packages
-      - cmake
-      - cmake-data
       - xorg-dev
-      - libgl1-mesa-glx
       - libgl1-mesa-dev
+
+env:
+  global:
+    - COVERITY_SCAN_PROJECT_NAME="${TRAVIS_REPO_SLUG}"
+    - COVERITY_SCAN_BRANCH_PATTERN="master"
+    - COVERITY_SCAN_NOTIFICATION_EMAIL="4f7f3a820da643d180486972f68a251f.protect@whoisguard.com"
+    - COVERITY_SCAN_BUILD_COMMAND_PREPEND="cov-configure --comptype g++ --compiler g++-7 --template && cd build"
+    - COVERITY_SCAN_BUILD_COMMAND="make -j2"
 
 matrix:
   fast_finish: true
   include:
-    # clang debug
+    # clang5 debug
     - os: linux
-      env: BUILDTYPE=Debug CXX_COMPILER=clang++-3.8 CC_COMPILER=clang-3.8
+      env: 
+        - BUILDTYPE=Debug
+        - MATRIX_EVAL="CC=clang-4.0 && CXX=clang++-4.0"
       compiler: clang
       addons:
         apt:
           sources:
-            - *shared_linux_sources
+            - llvm-toolchain-trusty-4.0
+          packages:
+            - *shared_linux_packages
+            - clang-4.0
+    
+    # clang3.8 release
+    - os: linux
+      env: 
+        - BUILDTYPE=Release
+        - MATRIX_EVAL="CC=clang-3.8 && CXX=clang++-3.8"
+      compiler: clang
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
             - llvm-toolchain-precise-3.8
           packages:
             - *shared_linux_packages
             - clang-3.8
 
-    # clang release
+    # gcc4.9 debug with coverage
     - os: linux
-      env: BUILDTYPE=Release CXX_COMPILER=clang++-3.8 CC_COMPILER=clang-3.8
-      compiler: clang
-      addons:
-        apt:
-          sources:
-            - *shared_linux_sources
-            - llvm-toolchain-precise-3.8
-          packages:
-            - *shared_linux_packages
-            - clang-3.8
-
-    # gnu debug with coverage
-    - os: linux
-      env: BUILDTYPE=Debug CXX_COMPILER=g++-4.9 CC_COMPILER=gcc-4.9 COVERAGE=1 COMPILER_FLAGS=--coverage
+      env: 
+        - BUILDTYPE=Debug 
+        - COVERAGE=1
+        - MATRIX_EVAL="CC=gcc-4.9 && CXX=g++-4.9"
       compiler: gcc
       addons:
         apt:
           sources:
-            - *shared_linux_sources
+            - ubuntu-toolchain-r-test
           packages:
             - *shared_linux_packages
-            - &gnu_packages [g++-4.9, gcc-4.9]
+            - g++-4.9
             - lcov
-      install:
-        - gem install coveralls-lcov
 
-    # gnu release with coverity
+    # gcc7 release with coverity
     - os: linux
       env: 
         - BUILDTYPE=Release 
-        - CXX_COMPILER=g++-4.9 
-        - CC_COMPILER=gcc-4.9
-        - COVERITY_SCAN_PROJECT_NAME="${TRAVIS_REPO_SLUG}"
-        - COVERITY_SCAN_BRANCH_PATTERN="master"
-        - COVERITY_SCAN_NOTIFICATION_EMAIL="4f7f3a820da643d180486972f68a251f.protect@whoisguard.com"
-        - COVERITY_SCAN_BUILD_COMMAND_PREPEND="cov-configure --comptype g++ --compiler g++-4.9 --template && cd build"
-        - COVERITY_SCAN_BUILD_COMMAND="make -j2"
+        - COVERITY_SCAN=1
+        - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
       compiler: gcc
       addons:
         apt:
           sources:
-            - *shared_linux_sources
+            - ubuntu-toolchain-r-test
           packages:
             - *shared_linux_packages
-            - *gnu_packages
-      before_install:
-        - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
+            - g++-7
 
     # osx gcc
     - os: osx
-      osx_image: xcode8.3
-      env: BUILDTYPE=Release CXX_COMPILER=g++ CC_COMPILER=gcc
+      osx_image: xcode8
+      env: BUILDTYPE=Release
       compiler: gcc
     
     # osx clang
     - os: osx
-      osx_image: xcode8.3
-      env: BUILDTYPE=Release CXX_COMPILER=clang++ CC_COMPILER=clang
+      osx_image: xcode8
+      env: BUILDTYPE=Release
       compiler: clang
       

@@ -52,6 +52,9 @@ include_directories("include")
 
 file(GLOB FIXTURE_SOURCE_FILES test/fixtures/*.cpp test/fixtures/*.hpp)
 source_group(fixtures FILES ${FIXTURE_SOURCE_FILES})
+if (MSVC)
+    set_source_files_properties(${FIXTURE_SOURCE_FILES} PROPERTIES COMPILE_FLAGS "/Od")
+endif()
 
 file(GLOB COMPARISON_SOURCE_FILES test/comparison/*.cpp test/comparison/*.hpp)
 source_group(comparison FILES ${COMPARISON_SOURCE_FILES})

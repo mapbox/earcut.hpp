@@ -16,7 +16,7 @@ double bench(const Polygon &polygon) {
 
     Tesselator<Coord, Polygon> tesselator { polygon };
 
-    while (total < 2e9 || runs.size() < 100) {
+    while (total < 2000000000ll || runs.size() < 100) {
         const auto started = std::chrono::high_resolution_clock::now();
         tesselator.run();
         const auto finished = std::chrono::high_resolution_clock::now();
