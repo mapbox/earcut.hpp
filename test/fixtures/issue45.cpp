@@ -2,16 +2,14 @@
 
 #include "geometries.hpp"
 
-MAPBOX_MSVC_DISABLE_OPTIMIZATION()
 namespace mapbox {
 namespace fixtures {
 
-const IntegerPolygon issue45 = {
+static const Fixture<short> issue45("issue45", 10, 1e-14, 0.094, {
     {{10,10},{25,10},{25,40},{10,40}},
     {{15,30},{20,35},{10,40}},
     {{15,15},{15,20},{20,15}},
-};
+});
 
 }
 }
-MAPBOX_MSVC_ENABLE_OPTIMIZATION()

@@ -28,11 +28,11 @@ public:
         indices_ = mapbox::earcut(polygon);
     }
 
-    std::vector<uint32_t> indices() const {
+    std::vector<uint32_t> const& indices() const {
         return indices_;
     }
 
-    Vertices vertices() const {
+    Vertices const& vertices() const {
         return vertices_;
     }
 

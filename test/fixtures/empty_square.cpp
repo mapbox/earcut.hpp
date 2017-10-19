@@ -2,15 +2,13 @@
 
 #include "geometries.hpp"
 
-MAPBOX_MSVC_DISABLE_OPTIMIZATION()
 namespace mapbox {
 namespace fixtures {
 
-const IntegerPolygon empty_square = {
+static const Fixture<short> empty_square("empty_square", 0, 1e-14, Infinity, {
     {{0,0},{4000,0},{4000,4000},{0,4000}},
     {{0,0},{4000,0},{4000,4000},{0,4000}},
-};
+});
 
 }
 }
-MAPBOX_MSVC_ENABLE_OPTIMIZATION()

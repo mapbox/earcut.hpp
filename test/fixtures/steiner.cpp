@@ -2,18 +2,16 @@
 
 #include "geometries.hpp"
 
-MAPBOX_MSVC_DISABLE_OPTIMIZATION()
 namespace mapbox {
 namespace fixtures {
 
-const IntegerPolygon steiner = {
+static const Fixture<short> steiner("steiner", 9, 1e-14, 0.000001, {
     {{0,0},{100,0},{100,100},{0,100}},
     {{50,50}},
     {{30,40}},
     {{70,60}},
     {{20,70}},
-};
+});
 
 }
 }
-MAPBOX_MSVC_ENABLE_OPTIMIZATION()
