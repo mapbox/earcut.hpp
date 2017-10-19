@@ -3,41 +3,7 @@
 
 var fs = require('fs');
 var path = require('path');
-
-var hpp = '// This file is auto-generated, manual changes will be lost if the code is regenerated.\n\n';
-hpp += '#pragma once\n\n';
-hpp += '#include <vector>\n';
-hpp += '#include <map>\n';
-hpp += '#include <string>\n';
-hpp += '#include <utility>\n\n';
-
-hpp += '#ifdef _MSC_VER // msvc has trouble optimizing large inline std::vectors, so we disable the optimization\n';
-hpp += '# define MAPBOX_MSVC_DISABLE_OPTIMIZATION() __pragma(optimize("", off))\n';
-hpp += '# define MAPBOX_MSVC_ENABLE_OPTIMIZATION() __pragma(optimize("", on))\n';
-hpp += '#else\n';
-hpp += '# define MAPBOX_MSVC_DISABLE_OPTIMIZATION()\n';
-hpp += '# define MAPBOX_MSVC_ENABLE_OPTIMIZATION()\n';
-hpp += '#endif\n\n';
-
-hpp += 'namespace mapbox {\n';
-hpp += 'namespace fixtures {\n\n';
-
-hpp += 'template <typename T> using Polygon = std::vector<std::vector<T>>;\n';
-hpp += 'template <typename T> using Triangles = std::vector<T>;\n\n';
-
-hpp += 'using ShortPoint = std::pair<short, short>;\n';
-hpp += 'using ShortTriangles = Triangles<ShortPoint>;\n';
-hpp += 'using ShortPolygon = Polygon<ShortPoint>;\n\n';
-
-hpp += 'using IntegerPoint = std::pair<int, int>;\n';
-hpp += 'using IntegerTriangles = Triangles<IntegerPoint>;\n';
-hpp += 'using IntegerPolygon = Polygon<IntegerPoint>;\n\n';
-
-hpp += 'using DoublePoint = std::pair<double, double>;\n';
-hpp += 'using DoubleTriangles = Triangles<DoublePoint>;\n';
-hpp += 'using DoublePolygon = Polygon<DoublePoint>;\n\n\n';
-
-hpp += 'extern const ShortPolygon park;\n';
+var earcut = require('../../earcut/src/earcut.js');
 
 var integerPolygons = '';
 var doublePolygons = '';
@@ -47,14 +13,22 @@ fs.readdirSync(base).filter(function (name) {
     return path.extname(name) === '.json';
 }).forEach(function (name) {
     var json = JSON.parse(fs.readFileSync(path.join(base, name), 'utf-8'));
+    var data = earcut.flatten(json),
+        indices = earcut(data.vertices, data.holes, data.dimensions),
+        deviation = earcut.deviation(data.vertices, data.holes, data.dimensions, indices);
 
     var id = path.basename(name, path.extname(name)).replace(/[^a-z0-9]+/g, '_');
 
     var integer = true;
+    var short_integer = true;
 
     function processPoint(p) {
         if (integer && (p[0] % 1 !== 0 || p[1] % 1 !== 0)) {
             integer = false;
+            short_integer = false;
+        }
+        if (short_integer && (p[0] < -32767 || p[0] > 32767 || p[1] < -32767 || p[1] > 32767)) {
+            short_integer = false;
         }
         return p.join(',');
     }
@@ -64,28 +38,38 @@ fs.readdirSync(base).filter(function (name) {
         geometry += '    {{' + (json[i].map(processPoint).join('},{')) + '}},\n';
     }
 
-    var className = integer ? 'IntegerPolygon' : 'DoublePolygon';
+    var className = "Fixture<double>"
+    if (short_integer) {
+        className = "Fixture<short>"
+    } else if (integer) {
+        className = "Fixture<int>"
+    }
 
+    var expectedTriangles = indices.length / 3;
+    var expectedDeviation = deviation;
+    expectedDeviation += 1e-14;
+    var libtessDeviationMap = {
+        "water": 0.00002,
+        "water_huge": 0.0002,
+        "water_huge2": 0.00015,
+        "bad_hole": 0.0022,
+        "issue16": 0.0255,
+        "self_touching": 0.002,
+        "simplified_us_border": 0.001,
+        "issue45": 0.094,
+        "empty_square": Infinity
+    };
+    var expectedLibtessDeviation = libtessDeviationMap[id];
+    if (!expectedLibtessDeviation) expectedLibtessDeviation = 0.000001;
     var cpp = '// This file is auto-generated, manual changes will be lost if the code is regenerated.\n\n';
     cpp += '#include "geometries.hpp"\n\n';
-    cpp += 'MAPBOX_MSVC_DISABLE_OPTIMIZATION()\n';
     cpp += 'namespace mapbox {\n';
     cpp += 'namespace fixtures {\n\n';
-    cpp += 'const ' + className + ' ' + id + ' = {\n';
+    cpp += 'static const ' + className + ' ' + id + '("' + id + '", ' + expectedTriangles + ', ' + expectedDeviation + ', ' + expectedLibtessDeviation +', {\n';
     cpp += geometry;
-    cpp += '};\n\n';
+    cpp += '});\n\n';
     cpp += '}\n';
     cpp += '}\n';
-    cpp += 'MAPBOX_MSVC_ENABLE_OPTIMIZATION()\n';
-
-    hpp += 'extern const ' + className + ' ' + id + ';\n';
-
+    
     fs.writeFileSync('test/fixtures/' + id + '.cpp', cpp);
 });
-
-hpp += '\n';
-hpp += '}\n';
-hpp += '}\n';
-
-
-fs.writeFileSync('test/fixtures/geometries.hpp', hpp);

@@ -22,8 +22,7 @@ static bool drawFill = true;
 static bool drawMesh = true;
 static bool dirty = true;
 
-static int shapeIndex = 0;
-const static int totalShapes = 27;
+static std::size_t shapeIndex = 0;
 
 static std::size_t tesselator = 0;
 const static int totalTesselators = 2;
@@ -48,16 +47,16 @@ struct Shape {
         const auto dimX = minX < maxX ? maxX - minX : 0;
         const auto dimY = minY < maxY ? maxY - minY : 0;
 
-        midX = static_cast<int>(minX + dimX / 2);
-        midY = static_cast<int>(minY + dimY / 2);
-        ext = static_cast<int>(1.10 * (std::max)(dimX, dimY) / 2);
+        midX = static_cast<double>(minX + dimX / 2);
+        midY = static_cast<double>(minY + dimY / 2);
+        ext = static_cast<double>(1.10 * std::max<double>(dimX, dimY) / 2);
     }
 
     Shape<T> & operator=(const Shape<T>&) = delete;
 
     const std::vector<std::array<T, 2>> vertices;
     const std::vector<uint32_t> indices;
-    int midX, midY, ext;
+    double midX, midY, ext;
 };
 
 template <typename Coord, typename Polygon>
@@ -148,12 +147,12 @@ int main() {
             drawMesh = !drawMesh;
             dirty = true;
         } else if (key == GLFW_KEY_RIGHT) {
-            if (shapeIndex + 1 < totalShapes) {
+            if (shapeIndex + 1 < mapbox::fixtures::FixtureTester::collection().size()) {
                 shapeIndex++;
                 dirty = true;
             }
         } else if (key == GLFW_KEY_LEFT) {
-            if (shapeIndex - 1 >= 0) {
+            if (shapeIndex >= 1) {
                 shapeIndex--;
                 dirty = true;
             }
@@ -178,36 +177,9 @@ int main() {
     while (!glfwWindowShouldClose(window)) {
 
         if (dirty) {
-            switch (shapeIndex) {
-                case 0: drawPolygon("building", mapbox::fixtures::building); break;
-                case 1: drawPolygon("dude", mapbox::fixtures::dude); break;
-                case 2: drawPolygon("water", mapbox::fixtures::water); break;
-                case 3: drawPolygon("water2", mapbox::fixtures::water2); break;
-                case 4: drawPolygon("water3", mapbox::fixtures::water3); break;
-                case 5: drawPolygon("water3b", mapbox::fixtures::water3b); break;
-                case 6: drawPolygon("water4", mapbox::fixtures::water4); break;
-                case 7: drawPolygon("water_huge", mapbox::fixtures::water_huge); break;
-                case 8: drawPolygon("water_huge2", mapbox::fixtures::water_huge2); break;
-                case 9: drawPolygon("degenerate", mapbox::fixtures::degenerate); break;
-                case 10: drawPolygon("bad_hole", mapbox::fixtures::bad_hole); break;
-                case 11: drawPolygon("empty_square", mapbox::fixtures::empty_square); break;
-                case 12: drawPolygon("issue16", mapbox::fixtures::issue16); break;
-                case 13: drawPolygon("issue17", mapbox::fixtures::issue17); break;
-                case 14: drawPolygon("steiner", mapbox::fixtures::steiner); break;
-                case 15: drawPolygon("issue29", mapbox::fixtures::issue29); break;
-                case 16: drawPolygon("issue34", mapbox::fixtures::issue34); break;
-                case 17: drawPolygon("issue35", mapbox::fixtures::issue35); break;
-                case 18: drawPolygon("self-touching", mapbox::fixtures::self_touching); break;
-                case 19: drawPolygon("outside-ring", mapbox::fixtures::outside_ring); break;
-                case 20: drawPolygon("simplified-us-border", mapbox::fixtures::simplified_us_border); break;
-                case 21: drawPolygon("touching-holes", mapbox::fixtures::touching_holes); break;
-                case 22: drawPolygon("hole-touching-outer", mapbox::fixtures::hole_touching_outer); break;
-                case 23: drawPolygon("hilbert", mapbox::fixtures::hilbert); break;
-                case 24: drawPolygon("issue45", mapbox::fixtures::issue45); break;
-                case 25: drawPolygon("park", mapbox::fixtures::park); break;
-                case 26: drawPolygon("eberly-6", mapbox::fixtures::eberly_6); break;
-                default: assert(false); break;
-            }
+            auto& fixtures = mapbox::fixtures::FixtureTester::collection();
+            auto& fixture = fixtures[shapeIndex % fixtures.size()];
+            drawPolygon(fixture->name.c_str(), fixture->polygon());
 
             glfwSwapBuffers(window);
             dirty = false;

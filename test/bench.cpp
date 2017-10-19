@@ -1,24 +1,20 @@
-#include "comparison/earcut.hpp"
-#include "comparison/libtess2.hpp"
-
 #include "fixtures/geometries.hpp"
 
 #include <iostream>
 #include <iomanip>
 #include <vector>
 #include <chrono>
+#include <unordered_set>
 
-template <template <typename, typename> class Tesselator, typename Coord, typename Polygon>
-double bench(const Polygon &polygon) {
+template<typename Proc>
+double bench(Proc&& procedure) {
     std::vector<int64_t> runs;
     int64_t total = 0;
     uint32_t warmup = 0;
 
-    Tesselator<Coord, Polygon> tesselator { polygon };
-
     while (total < 2000000000ll || runs.size() < 100) {
         const auto started = std::chrono::high_resolution_clock::now();
-        tesselator.run();
+        procedure();
         const auto finished = std::chrono::high_resolution_clock::now();
 
         // Don't count the first couple of iterations.
@@ -34,12 +30,11 @@ double bench(const Polygon &polygon) {
     return double(runs.size()) / (double(total) / 1e9);
 }
 
-template <typename Coord, typename Polygon>
-void report(const char *name, const Polygon &polygon, const int cols[]) {
-    std::cerr << "| " << std::left << std::setw(cols[0]) << name << " | ";
-    auto earcut = bench<EarcutTesselator, Coord>(polygon);
+void report(mapbox::fixtures::FixtureTester* fixture, const int cols[]) {
+    std::cerr << "| " << std::left << std::setw(cols[0]) << fixture->name << " | ";
+    auto earcut = bench([&]{ fixture->earcut(); });
     std::cerr << std::right << std::setw(cols[1] - 6) << std::fixed << std::setprecision(0) << earcut << " ops/s | ";
-    auto libtess2 = bench<Libtess2Tesselator, Coord>(polygon);
+    auto libtess2 = bench([&]{ fixture->libtess(); });
     std::cerr << std::setw(cols[2] - 6) << std::setprecision(0) << libtess2 << " ops/s |" << std::endl;
 }
 
@@ -67,18 +62,16 @@ int main() {
 
     separator(cols);
 
-    report<int>("bad_hole", mapbox::fixtures::bad_hole, cols);
-    report<int>("building", mapbox::fixtures::building, cols);
-    report<int>("degenerate", mapbox::fixtures::degenerate, cols);
-    report<double>("dude", mapbox::fixtures::dude, cols);
-    report<int>("empty_square", mapbox::fixtures::empty_square, cols);
-    report<int>("water_huge", mapbox::fixtures::water_huge, cols);
-    report<int>("water_huge2", mapbox::fixtures::water_huge2, cols);
-    report<int>("water", mapbox::fixtures::water, cols);
-    report<int>("water2", mapbox::fixtures::water2, cols);
-    report<int>("water3", mapbox::fixtures::water3, cols);
-    report<int>("water3b", mapbox::fixtures::water3b, cols);
-    report<int>("water4", mapbox::fixtures::water4, cols);
+    auto& fixtures = mapbox::fixtures::FixtureTester::collection();
+    std::unordered_set<std::string> bench_whitelist = {
+        "bad_hole", "building", "degenerate", "dude", "empty_square", "water_huge",
+        "water_huge2", "water", "water2", "water3", "water3b", "water4"
+    };
+    for (auto fixture : fixtures) {
+        if (bench_whitelist.find(fixture->name) != bench_whitelist.end()) {
+            report(fixture, cols);
+        }
+    }
 
     separator(cols);
 

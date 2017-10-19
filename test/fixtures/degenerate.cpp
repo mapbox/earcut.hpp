@@ -2,14 +2,12 @@
 
 #include "geometries.hpp"
 
-MAPBOX_MSVC_DISABLE_OPTIMIZATION()
 namespace mapbox {
 namespace fixtures {
 
-const IntegerPolygon degenerate = {
+static const Fixture<short> degenerate("degenerate", 0, 1e-14, 0.000001, {
     {{100,100},{100,100},{200,100},{200,200},{200,100},{0,100}},
-};
+});
 
 }
 }
-MAPBOX_MSVC_ENABLE_OPTIMIZATION()
