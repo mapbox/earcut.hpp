@@ -84,7 +84,7 @@ private:
     bool hashing;
     double minX, maxX;
     double minY, maxY;
-    double size;
+    double inv_size = 0;
 
     template <typename T, typename Alloc = std::allocator<T>>
     class ObjectPool {
@@ -135,7 +135,6 @@ void Earcut<N>::operator()(const Polygon& points) {
 
     double x;
     double y;
-    size = 0;
     int threshold = 80;
     std::size_t len = 0;
 
@@ -170,7 +169,8 @@ void Earcut<N>::operator()(const Polygon& points) {
         } while (p != outerNode);
 
         // minX, minY and size are later used to transform coords into integers for z-order calculation
-        size = std::max<double>(maxX - minX, maxY - minY);
+        inv_size = std::max<double>(maxX - minX, maxY - minY);
+        inv_size = inv_size != .0 ? (1. / inv_size) : .0;
     }
 
     earcutLinked(outerNode);
@@ -231,7 +231,7 @@ Earcut<N>::filterPoints(Node* start, Node* end) {
             removeNode(p);
             p = end = p->prev;
 
-            if (p == p->next) return nullptr;
+            if (p == p->next) break;
             again = true;
 
         } else {
@@ -603,8 +603,8 @@ Earcut<N>::sortLinked(Node* list) {
 template <typename N>
 int32_t Earcut<N>::zOrder(const double x_, const double y_) {
     // coords are transformed into non-negative 15-bit integer range
-    int32_t x = static_cast<int32_t>(32767.0 * (x_ - minX) / size);
-    int32_t y = static_cast<int32_t>(32767.0 * (y_ - minY) / size);
+    int32_t x = static_cast<int32_t>(32767.0 * (x_ - minX) * inv_size);
+    int32_t y = static_cast<int32_t>(32767.0 * (y_ - minY) * inv_size);
 
     x = (x | (x << 8)) & 0x00FF00FF;
     x = (x | (x << 4)) & 0x0F0F0F0F;
