@@ -26,9 +26,9 @@ script:
   - echo -e "travis_fold:start:COVERALLS folding starts"
   - if [[ -n $COVERALLS_REPO_TOKEN && ${COVERAGE} == "1" ]]; then
       lcov -v && gcov -v ;
-      lcov --compat-libtool --directory . --base-directory ../include/mapbox --no-external --capture --rc lcov_branch_coverage=1 --output-file coverage.info ;
+      lcov --gcov-tool /usr/bin/gcov-7 --compat-libtool --directory . --base-directory ../include/mapbox --no-external --capture --rc lcov_branch_coverage=1 --output-file coverage.info ;
       lcov --list coverage.info ;
-      coveralls-lcov --verbose --repo-token ${COVERALLS_REPO_TOKEN} coverage.info ;
+      coveralls-lcov --repo-token ${COVERALLS_REPO_TOKEN} coverage.info ;
     fi
   - echo -e "travis_fold:end:COVERALLS folding ends"
   - ./bench
@@ -50,19 +50,19 @@ env:
 matrix:
   fast_finish: true
   include:
-    # clang4 debug
+    # clang5 debug
     - os: linux
       env:
         - BUILDTYPE=Debug
-        - MATRIX_EVAL="CC=clang-4.0 && CXX=clang++-4.0"
+        - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
       compiler: clang
       addons:
         apt:
           sources:
-            - llvm-toolchain-trusty-4.0
+            - llvm-toolchain-trusty-5.0
           packages:
             - *shared_linux_packages
-            - clang-4.0
+            - clang-5.0
     
     # clang3.8 release
     - os: linux
@@ -79,22 +79,26 @@ matrix:
             - *shared_linux_packages
             - clang-3.8
 
-    # gcc4.8 debug with coverage
+    # gcc7 debug with coverage
     - os: linux
       env:
-        - BUILDTYPE=Debug 
+        - BUILDTYPE=Debug
         - COVERAGE=1
+        - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
       compiler: gcc
       addons:
         apt:
+          sources:
+            - ubuntu-toolchain-r-test
           packages:
             - *shared_linux_packages
+            - g++-7
             - lcov
 
     # gcc7 release with coverity
     - os: linux
       env:
-        - BUILDTYPE=Release 
+        - BUILDTYPE=Release
         - COVERITY_SCAN=1
         - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
       compiler: gcc
