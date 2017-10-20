@@ -61,14 +61,18 @@ struct Shape {
 
 template <typename Coord, typename Polygon>
 Shape<Coord> buildPolygon(const Polygon &polygon) {
-    if (tesselator == 0) {
-        EarcutTesselator<Coord, Polygon> tess(polygon);
-        tess.run();
-        return Shape<Coord>(std::move(tess.vertices()), std::move(tess.indices()));
-    } else if (tesselator == 1) {
-        Libtess2Tesselator<Coord, Polygon> tess(polygon);
-        tess.run();
-        return Shape<Coord>(std::move(tess.vertices()), std::move(tess.indices()));
+    try {
+        if (tesselator == 0) {
+            EarcutTesselator<Coord, Polygon> tess(polygon);
+            tess.run();
+            return Shape<Coord>(std::move(tess.vertices()), std::move(tess.indices()));
+        } else if (tesselator == 1) {
+            Libtess2Tesselator<Coord, Polygon> tess(polygon);
+            tess.run();
+            return Shape<Coord>(std::move(tess.vertices()), std::move(tess.indices()));
+        }
+    } catch(std::runtime_error const& e) {
+        std::cerr << "Tessellation error occurred: " << e.what() << std::endl;
     }
     assert(false);
     return Shape<Coord>(std::vector<std::array<Coord, 2>>(), std::vector<uint32_t>());

@@ -1,5 +1,3 @@
-// This file is auto-generated, manual changes will be lost if the code is regenerated.
-
 #pragma once
 
 #include <utility>

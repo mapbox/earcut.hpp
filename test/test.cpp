@@ -98,7 +98,8 @@ int main() {
 
     {
         Tap::Test t("empty");
-        EarcutTesselator<int, mapbox::fixtures::Polygon<std::pair<int, int>>> tesselator(mapbox::fixtures::Polygon<std::pair<int, int>> {});
+        auto polygon = mapbox::fixtures::Polygon<std::pair<int, int>> {};
+        EarcutTesselator<int, mapbox::fixtures::Polygon<std::pair<int, int>>> tesselator(polygon);
         tesselator.run();
         t.ok(tesselator.indices().empty(), "empty input produces empty result");
         t.end();
