@@ -44,7 +44,11 @@ public:
 
         int status = tessTesselate(tess.get(), TESS_WINDING_POSITIVE, TESS_POLYGONS, verticesPerTriangle, vertexSize, 0);
         if (!status) {
+#if defined(__cpp_exceptions) || defined(__EXCEPTIONS)
             throw std::runtime_error("tesselation failed");
+#else
+            assert(false && "tesselation failed");
+#endif
         }
     }
 

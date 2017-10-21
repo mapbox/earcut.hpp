@@ -11,7 +11,7 @@ install:
   - if [[ ${COVERAGE} == "1" ]]; then
       gem install specific_install ;
       gem specific_install https://github.com/mrgreywater/coveralls-lcov fix-record-reading ;
-      export CXXFLAGS=--coverage ;
+      export CXXFLAGS="--coverage -fno-omit-frame-pointer -fno-default-inline -fno-inline -fno-exceptions -fno-unwind-tables" ;
     fi
 
 before_script:

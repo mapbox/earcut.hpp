@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <stdexcept>
+#include <cassert>
 
 int Tap::total = 0;
 int Tap::errored = 0;
@@ -9,7 +10,12 @@ bool Tap::started = false;
 
 Tap::Tap() {
     if (started) {
+#if defined(__cpp_exceptions) || defined(__EXCEPTIONS)
         throw std::runtime_error("Tap cannot be initialized more than once");
+#else
+        assert(false && "Tap cannot be initialized more than once");
+        exit(1);
+#endif
     }
 
     std::cout << "TAP version 13" << std::endl;
