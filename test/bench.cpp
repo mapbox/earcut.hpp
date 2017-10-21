@@ -8,35 +8,33 @@
 
 template<typename Proc>
 double bench(Proc&& procedure) {
-    std::vector<int64_t> runs;
+    int64_t runs = -10;
     int64_t total = 0;
-    uint32_t warmup = 0;
 
-    while (total < 2000000000ll || runs.size() < 100) {
+    while (total < 2000000000ll || runs < 100) {
         const auto started = std::chrono::high_resolution_clock::now();
         procedure();
         const auto finished = std::chrono::high_resolution_clock::now();
 
         // Don't count the first couple of iterations.
-        if (warmup >= 10) {
-            const auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(finished - started).count();
-            runs.push_back(duration);
-            total += duration;
-        } else {
-            warmup++;
+        if (++runs > 0) {
+            total += std::chrono::duration_cast<std::chrono::nanoseconds>(finished - started).count();
         }
     }
 
-    return double(runs.size()) / (double(total) / 1e9);
+    return double(runs) / (double(total) / 1e9);
 }
 
 void report(mapbox::fixtures::FixtureTester* fixture, const int cols[]) {
     std::ios::fmtflags flags(std::cerr.flags());
+    const char filling = std::cerr.fill();
+    std::cerr << std::setfill(' ');
     std::cerr << "| " << std::left << std::setw(cols[0]) << fixture->name << " | ";
     auto earcut = bench([&]{ fixture->earcut(); });
     std::cerr << std::right << std::setw(cols[1] - 6) << std::fixed << std::setprecision(0) << earcut << " ops/s | ";
     auto libtess2 = bench([&]{ fixture->libtess(); });
     std::cerr << std::setw(cols[2] - 6) << std::setprecision(0) << libtess2 << " ops/s |" << std::endl;
+    std::cerr << std::setfill(filling);
     std::cerr.flags(flags);
 }
 
