@@ -34,6 +34,7 @@ struct Camera2D {
     int viewWidth = 0, viewHeight = 0;
     double zoom = -1.;
     double mx = .0, cx = .0, my = .0, cy = .0;
+    inline float dpi() { return float(viewHeight) / height; }
     inline double scaling() { return std::pow(1.1, zoom); }
     void setView(int width, int height) {
         viewWidth = width;
@@ -122,7 +123,6 @@ public:
     void drawMesh() override {
         const auto &v = shape.vertices;
         const auto &x = shape.indices;
-        glLineWidth(float(cam.viewHeight) / height);
         glBegin(GL_LINES);
         glColor4fv(colorMesh);
         for (size_t i = 0; i < x.size(); i += 3) {
@@ -136,7 +136,6 @@ public:
         glEnd();
     }
     void drawOutline() override {
-        glLineWidth(float(cam.viewHeight) / height);
         glBegin(GL_LINES);
         for (std::size_t i = 0; i < polygon.size(); i++) {
             auto& ring = polygon[i];
@@ -297,7 +296,6 @@ public:
     }
     void drawOutline() override {
         auto& polygon = shape->polygon();
-        glLineWidth(float(cam.viewHeight) / height);
         glBegin(GL_LINES);
         for (std::size_t i = 0; i < polygon.size(); i++) {
             auto& ring = polygon[i];
@@ -423,8 +421,12 @@ int main() {
     glfwSwapInterval(1);
 
     glClearColor(colorBackground[0], colorBackground[1], colorBackground[2], colorBackground[3]);
+
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glEnable(GL_LINE_SMOOTH);
+    glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
 
     while (!glfwWindowShouldClose(window)) {
         static double mouseX = 0, mouseY = 0;
@@ -468,6 +470,7 @@ int main() {
             glClear(GL_COLOR_BUFFER_BIT);
 
             cam.apply();
+            glLineWidth(cam.dpi() * std::sqrt(2.f));
 
             auto& drawable = tessellators[tessellator];
 
