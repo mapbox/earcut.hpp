@@ -17,9 +17,11 @@
 static GLFWwindow *window = nullptr;
 static const int width = 1024;
 static const int height = 1024;
-static bool drawFill = true;
-static bool drawMesh = true;
+static bool drawFill = true, drawMesh = true, drawOutline = true;
 static bool dirtyViewport = true, dirtyShape = true, dirtyTessellator = true;
+static float colorBackground[4] = {1.f, 1.f, 1.f, 1.f};
+static float colorMesh[4] = {1.f, 0.f, 0.f, 0.2f}, colorFill[4] = {1.f, 1.f, 0.f, 0.2f};
+static float colorOutline[4] = {0.2f, 0.2f, 0.2f, 0.9f}, colorInline[4] = {0.7f, 0.6f, .2f, 0.9f};
 
 static bool mouseDrag = false;
 
@@ -107,19 +109,22 @@ public:
     virtual ~DrawablePolygon() = default;
     virtual const char* name() = 0;
     virtual void drawMesh() = 0;
+    virtual void drawOutline() = 0;
     virtual void drawFill() = 0;
 };
 
 class DrawableTesselator : public DrawablePolygon {
     mapbox::fixtures::FixtureTester::TesselatorResult shape;
+    mapbox::fixtures::DoublePolygon const& polygon;
 public:
-    explicit DrawableTesselator(mapbox::fixtures::FixtureTester::TesselatorResult tessellation) : shape(tessellation) { }
+    explicit DrawableTesselator(mapbox::fixtures::FixtureTester::TesselatorResult tessellation,
+                                mapbox::fixtures::DoublePolygon const& poly) : shape(tessellation), polygon(poly) { }
     void drawMesh() override {
         const auto &v = shape.vertices;
         const auto &x = shape.indices;
         glLineWidth(float(cam.viewHeight) / height);
         glBegin(GL_LINES);
-        glColor3f(1, 0, 0);
+        glColor4fv(colorMesh);
         for (size_t i = 0; i < x.size(); i += 3) {
             cam.vec2(v[x[i]][0], v[x[i]][1]);
             cam.vec2(v[x[i + 1]][0], v[x[i + 1]][1]);
@@ -129,28 +134,45 @@ public:
             cam.vec2(v[x[i]][0], v[x[i]][1]);
         }
         glEnd();
-    };
+    }
+    void drawOutline() override {
+        glLineWidth(float(cam.viewHeight) / height);
+        glBegin(GL_LINES);
+        for (std::size_t i = 0; i < polygon.size(); i++) {
+            auto& ring = polygon[i];
+            glColor4fv(i == 0 ? colorOutline : colorInline);
+            for (std::size_t j = 0; j < ring.size(); j++) {
+                auto& p0 = ring[j];
+                auto& p1 = ring[(j+1) % ring.size()];
+                cam.vec2(std::get<0>(p0), std::get<1>(p0));
+                cam.vec2(std::get<0>(p1), std::get<1>(p1));
+            }
+        }
+        glEnd();
+    }
     void drawFill() override {
         const auto &v = shape.vertices;
         const auto &x = shape.indices;
         glBegin(GL_TRIANGLES);
-        glColor3f(0.3f, 0.3f, 0.3f);
+        glColor4fv(colorFill);
         for (const auto pt : x) {
-            cam.vec2(static_cast<GLfloat>(v[pt][0]), static_cast<GLfloat>(v[pt][1]));
+            cam.vec2(v[pt][0], v[pt][1]);
         }
         glEnd();
-    };
+    }
 };
 
 class DrawableEarcut : public DrawableTesselator {
 public:
-    explicit DrawableEarcut(mapbox::fixtures::FixtureTester* fixture) : DrawableTesselator(fixture->earcut()) { }
+    explicit DrawableEarcut(mapbox::fixtures::FixtureTester* fixture)
+            : DrawableTesselator(fixture->earcut(), fixture->polygon()) { }
     const char *name() override { return "earcut"; };
 };
 
 class DrawableLibtess : public DrawableTesselator {
 public:
-    explicit DrawableLibtess(mapbox::fixtures::FixtureTester* fixture) : DrawableTesselator(fixture->libtess()) { }
+    explicit DrawableLibtess(mapbox::fixtures::FixtureTester* fixture)
+            : DrawableTesselator(fixture->libtess(), fixture->polygon()) { }
     const char *name() override { return "libtess2"; };
 };
 
@@ -262,11 +284,7 @@ public:
         for (std::size_t i = 0; i < edgeTables.size(); i++) {
             auto& edgeTable = edgeTables[i];
             glBegin(GL_QUADS);
-            if (i == 0) {
-                glColor3f(0.3f, 0.3f, 0.3f);
-            } else {
-                glColor3f(1, 1, 1);
-            }
+            glColor4fv(i == 0 ? colorFill : colorBackground);
             double x0 = 1;
             double y0 = 1;
             cam.toWorld(&x0, &y0);
@@ -277,26 +295,23 @@ public:
             glEnd();
         }
     }
-    void drawMesh() override {
+    void drawOutline() override {
         auto& polygon = shape->polygon();
         glLineWidth(float(cam.viewHeight) / height);
+        glBegin(GL_LINES);
         for (std::size_t i = 0; i < polygon.size(); i++) {
             auto& ring = polygon[i];
-            glBegin(GL_LINES);
-            if (i == 0) {
-                glColor3f(1, 0, 0);
-            } else {
-                glColor3f(1, 1, 0);
-            }
+            glColor4fv(i == 0 ? colorOutline : colorInline);
             for (std::size_t j = 0; j < ring.size(); j++) {
                 auto& p0 = ring[j];
                 auto& p1 = ring[(j+1) % ring.size()];
                 cam.vec2(std::get<0>(p0), std::get<1>(p0));
                 cam.vec2(std::get<0>(p1), std::get<1>(p1));
             }
-            glEnd();
         }
+        glEnd();
     }
+    void drawMesh() override { }
     const char *name() override { return "scanline-fill"; }
 };
 
@@ -348,6 +363,9 @@ int main() {
             dirtyViewport = true;
         } else if (key == GLFW_KEY_M) {
             drawMesh = !drawMesh;
+            dirtyViewport = true;
+        } else if (key == GLFW_KEY_O) {
+            drawOutline = !drawOutline;
             dirtyViewport = true;
         } else if (key == GLFW_KEY_RIGHT) {
             if (shapeIndex + 1 < mapbox::fixtures::FixtureTester::collection().size()) {
@@ -404,7 +422,9 @@ int main() {
 
     glfwSwapInterval(1);
 
-    glClearColor(1, 1, 1, 1);
+    glClearColor(colorBackground[0], colorBackground[1], colorBackground[2], colorBackground[3]);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     while (!glfwWindowShouldClose(window)) {
         static double mouseX = 0, mouseY = 0;
@@ -460,8 +480,8 @@ int main() {
                                             + getFixture(shapeIndex)->name).c_str());
             }
 
-            if (!drawMesh && !drawFill) {
-                drawMesh = drawFill = true;
+            if (!drawMesh && !drawFill && !drawOutline) {
+                drawMesh = drawFill = drawOutline = true;
             }
 
             if (drawFill) {
@@ -469,6 +489,9 @@ int main() {
             }
             if (drawMesh) {
                 drawable->drawMesh();
+            }
+            if (drawOutline) {
+                drawable->drawOutline();
             }
 
             glFlush(); /* required for Mesa 3D driver */
