@@ -156,8 +156,8 @@ void Earcut<N>::operator()(const Polygon& points) {
     hashing = threshold < 0;
     if (hashing) {
         Node* p = outerNode->next;
-        minX = maxX = p->x;
-        minY = maxY = p->y;
+        minX = maxX = outerNode->x;
+        minY = maxY = outerNode->y;
         do {
             x = p->x;
             y = p->y;
