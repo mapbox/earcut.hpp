@@ -30,20 +30,26 @@ using N = uint32_t;
 // Create array
 using Point = std::array<Coord, 2>;
 std::vector<std::vector<Point>> polygon;
-// ... fill polygon structure with actual data
+
+// Fill polygon structure with actual data. Any winding order works.
+// The first polyline defines the main polygon.
+polygon.push_back({{100, 0}, {100, 100}, {0, 100}, {0, 0}});
+// Following polylines define holes.
+polygon.push_back({{75, 25}, {75, 75}, {25, 75}, {25, 25}});
 
 // Run tessellation
 // Returns array of indices that refer to the vertices of the input polygon.
-// Three subsequent indices form a triangle.
+// e.g: the index 6 would refer to {25, 75} in this example.
+// Three subsequent indices form a triangle. Output triangles are clockwise.
 std::vector<N> indices = mapbox::earcut<N>(polygon);
 ```
 
 It is also possible to use your custom point type as input. There are default accessors defined for `std::tuple`, `std::pair`, and `std::array`. For a custom type (like Clipper's `IntPoint` type), do this:
 
 ```cpp
-struct IntPoint {
-    int64_t X, Y;
-};
+// struct IntPoint {
+//     int64_t X, Y;
+// };
 
 namespace mapbox {
 namespace util {
@@ -65,6 +71,10 @@ struct nth<1, IntPoint> {
 } // namespace mapbox
 ```
 
+<p align="center">
+  <img src="https://camo.githubusercontent.com/01836f8ba21af844c93d8d3145f4e9976025a696/68747470733a2f2f692e696d6775722e636f6d2f67314e704c54712e706e67" alt="example triangulation"/>
+</p>
+
 ## Additional build instructions
 In case you just want to use the earcut triangulation library; copy and include the header file [`<earcut.hpp>`](https://github.com/mapbox/earcut.hpp/blob/master/include/mapbox/earcut.hpp) in your project and follow the steps documented in the section [Usage](#usage).
 
@@ -73,9 +83,9 @@ If you want to build the test, benchmark and visualization programs instead, fol
 ### Dependencies
 
 Before you continue, make sure to have the following tools and libraries installed:
- * git ([Ubuntu](https://help.ubuntu.com/lts/serverguide/git.html)/[Windows/Other](http://git-scm.com/downloads))
- * cmake 3.2+ ([Ubuntu](https://launchpad.net/~george-edison55/+archive/ubuntu/cmake-3.x)/[Windows/Other](https://cmake.org/download/))
- * OpenGL SDK ([Ubuntu](http://packages.ubuntu.com/de/trusty/libgl1-mesa-dev)/[Windows](https://dev.windows.com/en-us/downloads/windows-10-sdk)/[Apple](https://developer.apple.com/opengl/))
+ * git ([Ubuntu](https://help.ubuntu.com/lts/serverguide/git.html)/[Windows/macOS](http://git-scm.com/downloads))
+ * cmake 3.2+ ([Ubuntu](https://launchpad.net/~george-edison55/+archive/ubuntu/cmake-3.x)/[Windows/macOS](https://cmake.org/download/))
+ * OpenGL SDK ([Ubuntu](http://packages.ubuntu.com/de/trusty/libgl1-mesa-dev)/[Windows](https://dev.windows.com/en-us/downloads/windows-10-sdk)/[macOS](https://developer.apple.com/opengl/))
  * Compiler such as [GCC 4.9+, Clang 3.4+](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test), [MSVC12+](https://www.visualstudio.com/)
 
 Note: On some operating systems such as Windows, manual steps are required to add cmake and [git](http://blog.countableset.ch/2012/06/07/adding-git-to-windows-7-path/) to your PATH environment variable.
@@ -84,9 +94,9 @@ Note: On some operating systems such as Windows, manual steps are required to ad
 
 ```bash
 git clone --recursive https://github.com/mapbox/earcut.hpp.git
-cd ./earcut.hpp
+cd earcut.hpp
 mkdir build
-cd ./build
+cd build
 cmake ..
 make
 # ./tests
@@ -98,10 +108,10 @@ make
 
 ```batch
 git clone --recursive https://github.com/mapbox/earcut.hpp.git
-cd ./earcut.hpp
+cd earcut.hpp
 mkdir project
-cd ./project
-cmake .. -G "Visual Studio 14 2015"
+cd project
+cmake .. -G "Visual Studio 15 2017"
 ::you can also generate projects for "Visual Studio 12 2013", "XCode", "Eclipse CDT4 - Unix Makefiles"
 ```
 After completion, open the generated project with your IDE.
