@@ -44,6 +44,9 @@ polygon.push_back({{75, 25}, {75, 75}, {25, 75}, {25, 25}});
 std::vector<N> indices = mapbox::earcut<N>(polygon);
 ```
 
+Earcut can triangulate a simple, planar polygon of any winding order including holes. It will even return a robust, acceptable solution for non-simple poygons. Earcut works on a 2D plane. If you have three or more dimensions, you can project them onto a 2D surface before triangulation, or use a more suitable library for the task (e.g [CGAL](https://doc.cgal.org/latest/Triangulation_3/index.html)).
+
+
 It is also possible to use your custom point type as input. There are default accessors defined for `std::tuple`, `std::pair`, and `std::array`. For a custom type (like Clipper's `IntPoint` type), do this:
 
 ```cpp
@@ -70,6 +73,8 @@ struct nth<1, IntPoint> {
 } // namespace util
 } // namespace mapbox
 ```
+
+You can also use a custom container type for your polygon. Similar to std::vector<T>, it has to meet the requirements of [Container](http://en.cppreference.com/w/cpp/concept/Container), in particular `size()`, `empty()` and `operator[]`.
 
 <p align="center">
   <img src="https://camo.githubusercontent.com/01836f8ba21af844c93d8d3145f4e9976025a696/68747470733a2f2f692e696d6775722e636f6d2f67314e704c54712e706e67" alt="example triangulation"/>
@@ -111,12 +116,13 @@ git clone --recursive https://github.com/mapbox/earcut.hpp.git
 cd earcut.hpp
 mkdir project
 cd project
-cmake .. -G "Visual Studio 15 2017"
+cmake .. -G "Visual Studio 14 2015"
 ::you can also generate projects for "Visual Studio 12 2013", "XCode", "Eclipse CDT4 - Unix Makefiles"
 ```
 After completion, open the generated project with your IDE.
 
-### [CLion](https://www.jetbrains.com/clion/)
+
+### [CLion](https://www.jetbrains.com/clion/), [Visual Studio 2017](https://www.visualstudio.com/)
 
 Import the project from https://github.com/mapbox/earcut.hpp.git and you should be good to go!
 
