@@ -57,7 +57,9 @@ fs.readdirSync(base).filter(function (name) {
         "self_touching": 0.002,
         "simplified_us_border": 0.001,
         "issue45": 0.094,
-        "empty_square": Infinity
+        "empty_square": Infinity,
+        "issue83": Infinity,
+        "issue107": Infinity
     };
     var expectedLibtessDeviation = libtessDeviationMap[id];
     if (!expectedLibtessDeviation) expectedLibtessDeviation = 0.000001;
@@ -70,6 +72,6 @@ fs.readdirSync(base).filter(function (name) {
     cpp += '});\n\n';
     cpp += '}\n';
     cpp += '}\n';
-    
+
     fs.writeFileSync('test/fixtures/' + id + '.cpp', cpp);
 });

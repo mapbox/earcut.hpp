@@ -44,7 +44,7 @@ double polygonArea(const Polygon &rings) {
     for (size_t i = 1; i < rings.size(); i++) {
         sum -= ringArea(rings[i]);
     }
-    return sum;
+    return std::max(sum, .0);
 }
 
 std::string formatPercent(double num) {
@@ -58,23 +58,25 @@ void areaTest(mapbox::fixtures::FixtureTester* fixture) {
     Tap::Test t(fixture->name);
 
     const auto expectedArea = polygonArea(fixture->polygon());
+    const auto expectedTriangles = fixture->expectedTriangles;
 
     { // Earcut
-        const auto expectedTriangles = fixture->expectedTriangles;
         const auto earcut = fixture->earcut();
-        const auto area = trianglesArea(earcut.vertices, earcut.indices);
-        const double deviation = (expectedArea == area) ? 0 :
-                expectedArea == 0 ? std::numeric_limits<double>::infinity() :
-                std::abs(area - expectedArea) / expectedArea;
-        bool deviationOk = deviation <= fixture->expectedEarcutDeviation;
-        t.ok(deviationOk, std::string{ "earcut deviation " } + formatPercent(deviation) +
-                                                " is " + (deviationOk ? "" : "not ") + "less than " +
-                                                formatPercent(fixture->expectedEarcutDeviation));
 
-        if (expectedTriangles) {
-            const auto earcutTriangles = earcut.indices.size() / 3;
-            t.ok(earcutTriangles == expectedTriangles, std::to_string(earcutTriangles) + " triangles when expected " +
-                std::to_string(expectedTriangles));
+        const auto earcutTriangles = earcut.indices.size() / 3;
+        t.ok(earcutTriangles == expectedTriangles, std::to_string(earcutTriangles) + " triangles when expected " +
+            std::to_string(expectedTriangles));
+
+        if (expectedTriangles > 0) {
+            const auto area = trianglesArea(earcut.vertices, earcut.indices);
+            const double deviation = (expectedArea == area) ? 0 :
+                    expectedArea == 0 ? std::numeric_limits<double>::infinity() :
+                    std::abs(area - expectedArea) / expectedArea;
+
+            bool deviationOk = deviation <= fixture->expectedEarcutDeviation;
+            t.ok(deviationOk, std::string{ "earcut deviation " } + formatPercent(deviation) +
+                                                    " is " + (deviationOk ? "" : "not ") + "less than " +
+                                                    formatPercent(fixture->expectedEarcutDeviation));
         }
     }
 
@@ -84,6 +86,7 @@ void areaTest(mapbox::fixtures::FixtureTester* fixture) {
         const double deviation = (expectedArea == area) ? 0 :
                 expectedArea == 0 ? std::numeric_limits<double>::infinity() :
                 std::abs(area - expectedArea) / expectedArea;
+
         bool deviationOk = deviation <= fixture->expectedLibtessDeviation;
         t.ok(deviationOk, std::string{ "libtess2 deviation " } + formatPercent(deviation) +
                                              " is " + (deviationOk ? "" : "not ") + "less than " +
