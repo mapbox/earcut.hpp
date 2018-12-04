@@ -151,7 +151,7 @@ void Earcut<N>::operator()(const Polygon& points) {
     indices.reserve(len + points[0].size());
 
     Node* outerNode = linkedList(points[0], true);
-    if (!outerNode) return;
+    if (!outerNode || outerNode->prev == outerNode->next) return;
 
     if (points.size() > 1) outerNode = eliminateHoles(points, outerNode);
 
