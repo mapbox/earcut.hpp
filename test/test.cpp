@@ -81,18 +81,16 @@ void areaTest(mapbox::fixtures::FixtureTester* fixture) {
     }
 
     { // Libtess2
-        if (expectedTriangles > 0) {
-            const auto libtess = fixture->libtess();
-            const auto area = trianglesArea(libtess.vertices, libtess.indices);
-            const double deviation = (expectedArea == area) ? 0 :
-                    expectedArea == 0 ? std::numeric_limits<double>::infinity() :
-                    std::abs(area - expectedArea) / expectedArea;
+        const auto libtess = fixture->libtess();
+        const auto area = trianglesArea(libtess.vertices, libtess.indices);
+        const double deviation = (expectedArea == area) ? 0 :
+                expectedArea == 0 ? std::numeric_limits<double>::infinity() :
+                std::abs(area - expectedArea) / expectedArea;
 
-            bool deviationOk = deviation <= fixture->expectedLibtessDeviation;
-            t.ok(deviationOk, std::string{ "libtess2 deviation " } + formatPercent(deviation) +
-                                                 " is " + (deviationOk ? "" : "not ") + "less than " +
-                                                 formatPercent(fixture->expectedLibtessDeviation));
-        }
+        bool deviationOk = deviation <= fixture->expectedLibtessDeviation;
+        t.ok(deviationOk, std::string{ "libtess2 deviation " } + formatPercent(deviation) +
+                                             " is " + (deviationOk ? "" : "not ") + "less than " +
+                                             formatPercent(fixture->expectedLibtessDeviation));
     }
 
     t.end();
