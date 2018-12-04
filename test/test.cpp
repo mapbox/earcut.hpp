@@ -44,7 +44,7 @@ double polygonArea(const Polygon &rings) {
     for (size_t i = 1; i < rings.size(); i++) {
         sum -= ringArea(rings[i]);
     }
-    return sum;
+    return std::max(sum, .0);
 }
 
 std::string formatPercent(double num) {
