@@ -651,7 +651,7 @@ bool Earcut<N>::isValidDiagonal(Node* a, Node* b) {
            locallyInside(a, b) && locallyInside(b, a) && middleInside(a, b);
 }
 
-// signed area of a triangle
+// signed area of a parallelogram
 template <typename N>
 double Earcut<N>::area(const Node* p, const Node* q, const Node* r) const {
     return (q->y - p->y) * (r->x - q->x) - (q->x - p->x) * (r->y - q->y);
