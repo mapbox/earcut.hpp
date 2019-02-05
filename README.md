@@ -128,4 +128,4 @@ Import the project from https://github.com/mapbox/earcut.hpp.git and you should 
 
 ## Status
 
-This is currently based on [earcut 2.1.1](https://github.com/mapbox/earcut#211-mar-17-2016).
+This is currently based on [earcut 2.1.5](https://github.com/mapbox/earcut#215-feb-5-2019).

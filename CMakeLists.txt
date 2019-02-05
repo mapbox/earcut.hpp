@@ -34,6 +34,10 @@ endif()
 
 # setup compiler flags for earcut
 set(CMAKE_CXX_STANDARD 11)
+if (NOT CMAKE_BUILD_TYPE)
+    message(STATUS "No build type specified. Setting to 'Release'")
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "The type of build." FORCE)
+endif()
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang$" OR CMAKE_COMPILER_IS_GNUCXX)
     if ("${CMAKE_CXX_FLAGS}" MATCHES "--coverage")
         add_definitions(-DNDEBUG)

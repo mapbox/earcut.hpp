@@ -629,7 +629,8 @@ Earcut<N>::getLeftmost(Node* start) {
     Node* p = start;
     Node* leftmost = start;
     do {
-        if (p->x < leftmost->x) leftmost = p;
+        if (p->x < leftmost->x || (p->x == leftmost->x && p->y < leftmost->y))
+            leftmost = p;
         p = p->next;
     } while (p != start);
 
