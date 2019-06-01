@@ -74,7 +74,7 @@ struct nth<1, IntPoint> {
 } // namespace mapbox
 ```
 
-You can also use a custom container type for your polygon. Similar to std::vector<T>, it has to meet the requirements of [Container](http://en.cppreference.com/w/cpp/concept/Container), in particular `size()`, `empty()` and `operator[]`.
+You can also use a custom container type for your polygon. Similar to std::vector<T>, it has to meet the requirements of [Container](https://en.cppreference.com/w/cpp/named_req/Container), in particular `size()`, `empty()` and `operator[]`.
 
 <p align="center">
   <img src="https://camo.githubusercontent.com/01836f8ba21af844c93d8d3145f4e9976025a696/68747470733a2f2f692e696d6775722e636f6d2f67314e704c54712e706e67" alt="example triangulation"/>
