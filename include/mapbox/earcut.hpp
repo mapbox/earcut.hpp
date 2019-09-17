@@ -489,12 +489,13 @@ Earcut<N>::findHoleBridge(Node* hole, Node* outerNode) {
     // otherwise choose the Vertex of the minimum angle with the ray as connection Vertex
 
     const Node* stop = m;
-    double tanMin = std::numeric_limits<double>::infinity();
-    double tanCur = 0;
 
     p = m->next;
     double mx = m->x;
     double my = m->y;
+
+    double tanMin = std::abs(hy - my) / (hx - mx);
+    double tanCur = 0;
 
     while (p != stop) {
         if (hx >= p->x && p->x >= mx && hx != p->x &&
@@ -502,7 +503,8 @@ Earcut<N>::findHoleBridge(Node* hole, Node* outerNode) {
 
             tanCur = std::abs(hy - p->y) / (hx - p->x); // tangential
 
-            if ((tanCur < tanMin || (tanCur == tanMin && p->x > m->x)) && locallyInside(p, hole)) {
+            if ((tanCur < tanMin || (tanCur == tanMin && (p->x > m->x || area(m, m->next, p->next) > 0))) &&
+                    locallyInside(p, hole)) {
                 m = p;
                 tanMin = tanCur;
             }
