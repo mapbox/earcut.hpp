@@ -62,8 +62,9 @@ matrix:
             - llvm-toolchain-trusty-5.0
           packages:
             - *shared_linux_packages
+            - libjsoncpp0
             - clang-5.0
-    
+
     # clang3.8 release
     - os: linux
       env:
@@ -115,10 +116,9 @@ matrix:
       osx_image: xcode8
       env: BUILDTYPE=Release
       compiler: gcc
-    
+
     # osx clang
     - os: osx
       osx_image: xcode8
       env: BUILDTYPE=Release
       compiler: clang
-      
