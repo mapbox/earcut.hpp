@@ -56,14 +56,13 @@ matrix:
         - BUILDTYPE=Debug
         - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
       compiler: clang
+      dist: xenial
       addons:
         apt:
-          sources:
-            - llvm-toolchain-trusty-5.0
           packages:
             - *shared_linux_packages
             - clang-5.0
-    
+
     # clang3.8 release
     - os: linux
       env:
@@ -115,10 +114,9 @@ matrix:
       osx_image: xcode8
       env: BUILDTYPE=Release
       compiler: gcc
-    
+
     # osx clang
     - os: osx
       osx_image: xcode8
       env: BUILDTYPE=Release
       compiler: clang
-      
