@@ -35,6 +35,9 @@ addons:
       - xorg-dev
       - libgl1-mesa-dev
       - ccache
+  homebrew:
+    packages:
+      - ccache
 
 env:
   global:
