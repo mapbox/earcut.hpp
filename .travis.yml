@@ -50,20 +50,20 @@ env:
 matrix:
   fast_finish: true
   include:
-    # clang5 debug
+    # clang6 debug
     - os: linux
       env:
         - BUILDTYPE=Debug
-        - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
+        - MATRIX_EVAL="CC=clang-6.0 && CXX=clang++-6.0"
       compiler: clang
+      dist: trusty
       addons:
         apt:
           sources:
-            - llvm-toolchain-trusty-5.0
+            - llvm-toolchain-trusty-6.0
           packages:
             - *shared_linux_packages
-            - libjsoncpp0
-            - clang-5.0
+            - clang-6.0
 
     # clang3.8 release
     - os: linux
