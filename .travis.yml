@@ -27,7 +27,6 @@ script:
       coveralls-lcov --repo-token ${COVERALLS_REPO_TOKEN} coverage.info ;
     fi
   - echo -e "travis_fold:end:COVERALLS folding ends"
-  - ./bench
 
 addons:
   apt:

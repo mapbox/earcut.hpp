@@ -28,6 +28,5 @@ build_script:
 
 test_script:
   - cd build
-  - if exist %configuration% (cd "%configuration%") 
+  - if exist %configuration% (cd "%configuration%")
   - call "tests.exe"
-  - call "bench.exe"
