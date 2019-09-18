@@ -38,6 +38,7 @@ addons:
   homebrew:
     packages:
       - ccache
+    update: true
 
 env:
   global:
@@ -118,12 +119,12 @@ matrix:
 
     # osx gcc
     - os: osx
-      osx_image: xcode8
+      osx_image: xcode11
       env: BUILDTYPE=Release
       compiler: gcc
 
     # osx clang
     - os: osx
-      osx_image: xcode8
+      osx_image: xcode11
       env: BUILDTYPE=Release
       compiler: clang
