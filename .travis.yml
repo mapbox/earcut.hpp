@@ -17,7 +17,7 @@ before_script:
 
 script:
   - cd ${TRAVIS_BUILD_DIR}/build
-  - make -j4
+  - make -j2
   - ./tests
   - echo -e "travis_fold:start:COVERALLS folding starts"
   - if [[ -n $COVERALLS_REPO_TOKEN && ${COVERAGE} == "1" ]]; then
@@ -119,12 +119,12 @@ matrix:
 
     # osx gcc
     - os: osx
-      osx_image: xcode11
+      osx_image: xcode8
       env: BUILDTYPE=Release
       compiler: gcc
 
     # osx clang
     - os: osx
-      osx_image: xcode11
+      osx_image: xcode8
       env: BUILDTYPE=Release
       compiler: clang
