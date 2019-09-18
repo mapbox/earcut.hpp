@@ -59,7 +59,8 @@ fs.readdirSync(base).filter(function (name) {
         "issue45": 0.094,
         "empty_square": Infinity,
         "issue83": Infinity,
-        "issue107": Infinity
+        "issue107": Infinity,
+        "issue119": 0.04
     };
     var expectedLibtessDeviation = libtessDeviationMap[id];
     if (!expectedLibtessDeviation) expectedLibtessDeviation = 0.000001;
