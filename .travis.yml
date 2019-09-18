@@ -1,9 +1,5 @@
 language: cpp
 
-sudo: false
-
-cache: apt
-
 before_install:
   - if [[ ${COVERITY_SCAN} == "1" ]]; then echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca- ; fi
 
@@ -16,7 +12,7 @@ install:
 
 before_script:
   - eval "${MATRIX_EVAL}"
-  - ( mkdir -p build && cd build ; cmake .. -DCMAKE_BUILD_TYPE=${BUILDTYPE} -DEARCUT_WARNING_IS_ERROR=ON )
+  - ( mkdir -p build && cd build ; cmake .. -DCMAKE_BUILD_TYPE=${BUILDTYPE} -DEARCUT_WARNING_IS_ERROR=ON -DCMAKE_CXX_COMPILER_LAUNCHER="ccache" )
   - if [[ -n $COVERITY_SCAN_TOKEN && ${COVERITY_SCAN} == "1" ]] ; then curl -s 'https://scan.coverity.com/scripts/travisci_build_coverity_scan.sh' | bash || true ; fi
 
 script:
@@ -38,6 +34,11 @@ addons:
     packages: &shared_linux_packages
       - xorg-dev
       - libgl1-mesa-dev
+      - ccache
+  homebrew:
+    packages:
+      - ccache
+    update: true
 
 env:
   global:
@@ -46,6 +47,13 @@ env:
     - COVERITY_SCAN_NOTIFICATION_EMAIL="4f7f3a820da643d180486972f68a251f.protect@whoisguard.com"
     - COVERITY_SCAN_BUILD_COMMAND_PREPEND="cov-configure --comptype g++ --compiler g++-7 --template && cd build"
     - COVERITY_SCAN_BUILD_COMMAND="make -j2"
+    - CCACHE_TEMPDIR=/tmp/.ccache-temp
+    - CCACHE_COMPRESS=1
+    - CCACHE_DIR=${HOME}/.ccache
+
+cache:
+  directories:
+    - ${HOME}/.ccache
 
 matrix:
   fast_finish: true
