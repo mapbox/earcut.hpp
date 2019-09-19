@@ -1,7 +1,7 @@
 #include "comparison/earcut.hpp"
 #include "comparison/libtess2.hpp"
 
-#include "fixtures/geometries.hpp"
+#include "fixtures/fixtures.hpp"
 
 #if _MSC_VER >= 1900
 #pragma comment(lib, "legacy_stdio_definitions.lib")

@@ -1,5 +1,5 @@
 #include "tap.hpp"
-#include "fixtures/geometries.hpp"
+#include "fixtures/fixtures.hpp"
 
 #include <iomanip>
 #include <locale>

@@ -8,6 +8,8 @@ var earcut = require('../../earcut/src/earcut.js');
 var integerPolygons = '';
 var doublePolygons = '';
 
+var paths = [];
+
 var base = '../earcut/test/fixtures';
 fs.readdirSync(base).filter(function (name) {
     return path.extname(name) === '.json';
@@ -64,15 +66,19 @@ fs.readdirSync(base).filter(function (name) {
     };
     var expectedLibtessDeviation = libtessDeviationMap[id];
     if (!expectedLibtessDeviation) expectedLibtessDeviation = 0.000001;
-    var cpp = '// This file is auto-generated, manual changes will be lost if the code is regenerated.\n\n';
-    cpp += '#include "geometries.hpp"\n\n';
-    cpp += 'namespace mapbox {\n';
-    cpp += 'namespace fixtures {\n\n';
-    cpp += 'static const ' + className + ' ' + id + '("' + id + '", ' + expectedTriangles + ', ' + expectedDeviation + ', ' + expectedLibtessDeviation +', {\n';
-    cpp += geometry;
-    cpp += '});\n\n';
-    cpp += '}\n';
-    cpp += '}\n';
+    var hpp = '// This file is auto-generated, manual changes will be lost if the code is regenerated.\n\n';
+    hpp += '#pragma once\n';
+    hpp += '#include "geometries.hpp"\n\n';
+    hpp += 'namespace mapbox {\n';
+    hpp += 'namespace fixtures {\n\n';
+    hpp += 'static const ' + className + ' ' + id + '("' + id + '", ' + expectedTriangles + ', ' + expectedDeviation + ', ' + expectedLibtessDeviation +', {\n';
+    hpp += geometry;
+    hpp += '});\n\n';
+    hpp += '}\n';
+    hpp += '}\n';
 
-    fs.writeFileSync('test/fixtures/' + id + '.cpp', cpp);
+    fs.writeFileSync('test/fixtures/' + id + '.hpp', hpp);
+    paths.push(id + '.hpp');
 });
+
+fs.writeFileSync('test/fixtures/fixtures.hpp', '#pragma once\n\n' + paths.map(function (p) { return '#include "' + p + '"'; }).join('\n'));

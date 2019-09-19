@@ -1,4 +1,4 @@
-#include "fixtures/geometries.hpp"
+#include "fixtures/fixtures.hpp"
 
 #include <iostream>
 #include <iomanip>
