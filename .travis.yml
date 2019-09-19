@@ -12,7 +12,9 @@ install:
 
 before_script:
   - eval "${MATRIX_EVAL}"
-  - ( mkdir -p build && cd build ; cmake .. -DCMAKE_BUILD_TYPE=${BUILDTYPE} -DEARCUT_WARNING_IS_ERROR=ON -DCMAKE_CXX_COMPILER_LAUNCHER="ccache" )
+  # download ccache from mason (to avoid slow homebrew install)
+  - curl -sL https://mason-binaries.s3.amazonaws.com/${TRAVIS_OS_NAME}-x86_64/ccache/3.3.4.tar.gz | sudo tar --gunzip --extract --strip-components=1 --directory=/usr/local
+  - ( mkdir -p build && cd build ; cmake .. -DCMAKE_BUILD_TYPE=${BUILDTYPE} -DEARCUT_WARNING_IS_ERROR=ON -DCMAKE_CXX_COMPILER_LAUNCHER="/usr/local/bin/ccache" )
   - if [[ -n $COVERITY_SCAN_TOKEN && ${COVERITY_SCAN} == "1" ]] ; then curl -s 'https://scan.coverity.com/scripts/travisci_build_coverity_scan.sh' | bash || true ; fi
 
 script:
@@ -34,11 +36,6 @@ addons:
     packages: &shared_linux_packages
       - xorg-dev
       - libgl1-mesa-dev
-      - ccache
-  homebrew:
-    packages:
-      - ccache
-    update: true
 
 env:
   global:
