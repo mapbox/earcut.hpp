@@ -521,10 +521,7 @@ Earcut<N>::findHoleBridge(Node* hole, Node* outerNode) {
 // whether sector in vertex m contains sector in vertex p in the same coordinates
 template <typename N>
 bool Earcut<N>::sectorContainsSector(const Node* m, const Node* p) {
-    return (
-        (area(m->prev, m, p->prev) < 0 || area(p->prev, m, m->next) < 0) &&
-        (area(m->prev, m, p->next) < 0 || area(p->next, m, m->next) < 0)
-    );
+    return area(m->prev, m, p->prev) < 0 && area(p->next, m, m->next) < 0;
 }
 
 // interlink polygon nodes in z-order

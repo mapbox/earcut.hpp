@@ -60,7 +60,8 @@ fs.readdirSync(base).filter(function (name) {
         "empty_square": Infinity,
         "issue83": Infinity,
         "issue107": Infinity,
-        "issue119": 0.04
+        "issue119": 0.04,
+        "touching4": 0.06
     };
     var expectedLibtessDeviation = libtessDeviationMap[id];
     if (!expectedLibtessDeviation) expectedLibtessDeviation = 0.000001;
