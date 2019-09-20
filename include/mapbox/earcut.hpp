@@ -288,15 +288,18 @@ void Earcut<N>::earcutLinked(Node* ear, int pass) {
         // if we looped through the whole remaining polygon and can't find any more ears
         if (ear == stop) {
             // try filtering points and slicing again
-            if (!pass) earcutLinked(filterPoints(ear), 1);
+            if (!pass) {
+                earcutLinked(filterPoints(ear), 1);
 
             // if this didn't work, try curing all small self-intersections locally
-            else if (pass == 1) {
+            } else if (pass == 1) {
                 ear = cureLocalIntersections(filterPoints(ear));
                 earcutLinked(ear, 2);
 
             // as a last resort, try splitting the remaining polygon into two
-            } else if (pass == 2) splitEarcut(ear);
+            } else if (pass == 2) {
+                splitEarcut(ear);
+            }
 
             break;
         }
