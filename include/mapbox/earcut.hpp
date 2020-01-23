@@ -452,6 +452,9 @@ void Earcut<N>::eliminateHole(Node* hole, Node* outerNode) {
     outerNode = findHoleBridge(hole, outerNode);
     if (outerNode) {
         Node* b = splitPolygon(outerNode, hole);
+
+        // filter out colinear points around cuts
+        filterPoints(outerNode, outerNode->next);
         filterPoints(b, b->next);
     }
 }
