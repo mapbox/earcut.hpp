@@ -122,10 +122,10 @@ cmake .. -G "Visual Studio 14 2015"
 After completion, open the generated project with your IDE.
 
 
-### [CLion](https://www.jetbrains.com/clion/), [Visual Studio 2017](https://www.visualstudio.com/)
+### [CLion](https://www.jetbrains.com/clion/), [Visual Studio 2017+](https://www.visualstudio.com/)
 
 Import the project from https://github.com/mapbox/earcut.hpp.git and you should be good to go!
 
 ## Status
 
-This is currently based on [earcut 2.2.2](https://github.com/mapbox/earcut#222-jan-21-2020).
+This is currently based on [earcut 2.2.3](https://github.com/mapbox/earcut#223-jul-8-2021).
