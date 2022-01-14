@@ -11,6 +11,7 @@
 #include <memory>
 #include <vector>
 #include <array>
+#include <stdexcept>
 
 template <typename Coord, typename Polygon>
 class Libtess2Tesselator {
