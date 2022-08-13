@@ -616,7 +616,7 @@ Earcut<N>::sortLinked(Node* list) {
             p = q;
         }
 
-        tail->nextZ = nullptr;
+        if (tail) tail->nextZ = nullptr;
 
         if (numMerges <= 1) return list;
 
