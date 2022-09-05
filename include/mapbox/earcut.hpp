@@ -662,9 +662,9 @@ Earcut<N>::getLeftmost(Node* start) {
 // check if a point lies within a convex triangle
 template <typename N>
 bool Earcut<N>::pointInTriangle(double ax, double ay, double bx, double by, double cx, double cy, double px, double py) const {
-    return (cx - px) * (ay - py) - (ax - px) * (cy - py) >= 0 &&
-           (ax - px) * (by - py) - (bx - px) * (ay - py) >= 0 &&
-           (bx - px) * (cy - py) - (cx - px) * (by - py) >= 0;
+    return (cx - px) * (ay - py) >= (ax - px) * (cy - py) &&
+           (ax - px) * (by - py) >= (bx - px) * (ay - py) &&
+           (bx - px) * (cy - py) >= (cx - px) * (by - py);
 }
 
 // check if a diagonal between two polygon nodes is valid (lies in polygon interior)
