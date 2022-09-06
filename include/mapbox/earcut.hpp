@@ -443,7 +443,6 @@ Earcut<N>::eliminateHoles(const Polygon& points, Node* outerNode) {
     // process holes from left to right
     for (size_t i = 0; i < queue.size(); i++) {
         outerNode = eliminateHole(queue[i], outerNode);
-        outerNode = filterPoints(outerNode, outerNode->next);
     }
 
     return outerNode;
@@ -461,11 +460,10 @@ Earcut<N>::eliminateHole(Node* hole, Node* outerNode) {
     Node* bridgeReverse = splitPolygon(bridge, hole);
 
     // filter collinear points around the cuts
-    Node* filteredBridge = filterPoints(bridge, bridge->next);
     filterPoints(bridgeReverse, bridgeReverse->next);
 
     // Check if input node was removed by the filtering
-    return outerNode == bridge ? filteredBridge : outerNode;
+    return filterPoints(bridge, bridge->next);
 }
 
 // David Eberly's algorithm for finding a bridge between hole and outer polygon
