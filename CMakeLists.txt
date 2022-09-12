@@ -32,7 +32,7 @@ endif()
 file(GLOB FIXTURE_SOURCE_FILES test/fixtures/*.cpp test/fixtures/*.hpp)
 source_group(fixtures FILES ${FIXTURE_SOURCE_FILES})
 add_library(fixtures OBJECT ${FIXTURE_SOURCE_FILES})
-target_compile_options(fixtures PRIVATE "$<$<CXX_COMPILER_ID:MSVC>:/Od>")
+target_compile_options(fixtures PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/Od>)
 
 # In CMake 3.12, use target_link_libraries(fixtures PUBLIC earcut_hpp libtess2).
 # Since we support down to CMake 3.2, we need to manually propagate usage requirements of earcut_hpp
@@ -71,17 +71,17 @@ if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang$" OR CMAKE_COMPILER_IS_GNUCXX)
         include(CheckCXXCompilerFlag)
         check_cxx_compiler_flag("-fsanitize=undefined" HAVE_FLAG_SANITIZE_UNDEFINED)
         if(HAVE_FLAG_SANITIZE_UNDEFINED)
-            target_compile_options(common INTERFACE "$<$<CONFIG:Debug>:-fsanitize=undefined>")
+            target_compile_options(common INTERFACE $<$<CONFIG:Debug>:-fsanitize=undefined>)
             # TODO: Replace with target link option once we support CMake 3.13 
-            target_link_libraries(common INTERFACE "$<$<CONFIG:Debug>:-fsanitize=undefined>")
+            target_link_libraries(common INTERFACE $<$<CONFIG:Debug>:-fsanitize=undefined>)
         endif()
     endif()
 endif()
 
 if (EARCUT_WARNING_IS_ERROR)
     target_compile_options(common INTERFACE
-        $<$<CXX_COMPILER_ID:MSVC>:/WX>>
-        $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Werror>>
+        $<$<CXX_COMPILER_ID:MSVC>:/WX>
+        $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Werror>
     )
 endif()
 
