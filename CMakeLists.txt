@@ -34,7 +34,7 @@ target_link_libraries(fixtures PUBLIC earcut_hpp libtess2)
 file(GLOB COMPARISON_SOURCE_FILES test/comparison/*.cpp test/comparison/*.hpp)
 source_group(comparison FILES ${COMPARISON_SOURCE_FILES})
 # this is interface since there is no cpp files in the comparison directory
-add_library(comparison INTERFACE ${COMPARISON_SOURCE_FILES})
+add_library(comparison INTERFACE)
 
 
 file(GLOB LIBTESS2_SOURCE_FILES test/comparison/libtess2/*.c test/comparison/libtess2/*.h)
