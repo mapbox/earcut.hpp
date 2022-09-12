@@ -50,8 +50,8 @@ file(GLOB LIBTESS2_SOURCE_FILES test/comparison/libtess2/*.c test/comparison/lib
 source_group(comparison/libtess2 FILES ${LIBTESS2_SOURCE_FILES})
 add_library(libtess2 ${LIBTESS2_SOURCE_FILES})
 target_compile_options(libtess2 PRIVATE
-    $<$<CXX_COMPILER_ID:MSVC>:/wd4244 /wd4267>>
-    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w>>
+    $<$<CXX_COMPILER_ID:MSVC>:/wd4244 /wd4267>
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w>
 )
 
 add_library(common INTERFACE)
