@@ -54,6 +54,8 @@ if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang$" OR CMAKE_COMPILER_IS_GNUCXX)
         check_cxx_compiler_flag("-fsanitize=undefined" HAVE_FLAG_SANITIZE_UNDEFINED)
         if(HAVE_FLAG_SANITIZE_UNDEFINED)
             target_compile_options(common INTERFACE "$<$<CONFIG:Debug>:-fsanitize=undefined>")
+            # TODO: Replace with target link option once we support CMake 3.13 
+            target_link_libraries(common INTERFACE "$<$<CONFIG:Debug>:-fsanitize=undefined>")
         endif()
     endif()
     add_compile_options()
