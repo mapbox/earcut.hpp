@@ -22,7 +22,12 @@ target_include_directories(earcut_hpp INTERFACE
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-target_compile_features(earcut_hpp INTERFACE cxx_std_11)
+set(CMAKE_CXX_STANDARD 11)
+
+if("${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}" GREATER 3.7)
+    # Allow C++11 requirements to propagate when using recent CMake versions
+    target_compile_features(earcut_hpp INTERFACE cxx_std_11)
+endif()
 
 file(GLOB FIXTURE_SOURCE_FILES test/fixtures/*.cpp test/fixtures/*.hpp)
 source_group(fixtures FILES ${FIXTURE_SOURCE_FILES})
@@ -44,13 +49,18 @@ add_library(comparison INTERFACE)
 file(GLOB LIBTESS2_SOURCE_FILES test/comparison/libtess2/*.c test/comparison/libtess2/*.h)
 source_group(comparison/libtess2 FILES ${LIBTESS2_SOURCE_FILES})
 add_library(libtess2 ${LIBTESS2_SOURCE_FILES})
-target_compile_options(libtess2 PRIVATE "$<IF:$<CXX_COMPILER_ID:MSVC>,/wd4244;/wd4267,-w>")
+target_compile_options(libtess2 PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/wd4244 /wd4267>>
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w>>
+)
 
 add_library(common INTERFACE)
-target_link_libraries(common INTERFACE libtess2 comparison fixtures)
+target_link_libraries(common INTERFACE libtess2 comparison)
 
 # optional: -march=native (builds with the optimizations available on the build machine (only for local use!))
-target_compile_options(common INTERFACE "$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-pipe;-Wall;-Wextra;-Wconversion;-Wpedantic>")
+target_compile_options(common INTERFACE
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-pipe -Wall -Wextra -Wconversion -Wpedantic>
+)
 
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang$" OR CMAKE_COMPILER_IS_GNUCXX)
     if ("${CMAKE_CXX_FLAGS}" MATCHES "--coverage")
@@ -69,7 +79,10 @@ if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang$" OR CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 if (EARCUT_WARNING_IS_ERROR)
-    target_compile_options(common INTERFACE "$<IF:$<CXX_COMPILER_ID:MSVC>,/WX,-Werror>")
+    target_compile_options(common INTERFACE
+        $<$<CXX_COMPILER_ID:MSVC>:/WX>>
+        $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Werror>>
+    )
 endif()
 
 if (EARCUT_BUILD_TESTS)
