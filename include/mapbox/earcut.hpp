@@ -381,8 +381,8 @@ Earcut<N>::cureLocalIntersections(Node* start) {
             indices.emplace_back(b->i);
 
             // remove two nodes involved
-            removeNode(p);
             removeNode(p->next);
+            removeNode(p);
 
             p = start = b;
         }
