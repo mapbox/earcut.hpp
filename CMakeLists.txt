@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.2...3.12)
 project(earcut_hpp LANGUAGES CXX C)
 
 option(EARCUT_BUILD_TESTS "Build the earcut test program" ON)
