@@ -1,82 +1,71 @@
+#include <benchmark/benchmark.h>
 #include "fixtures/geometries.hpp"
 
-#include <iostream>
-#include <iomanip>
-#include <vector>
-#include <chrono>
 #include <set>
+#include <vector>
 
-template<typename Proc>
-double bench(Proc&& procedure) {
-    int64_t runs = -10;
-    int64_t total = 0;
-
-    while (total < 2000000000ll || runs < 100) {
-        const auto started = std::chrono::high_resolution_clock::now();
-        procedure();
-        const auto finished = std::chrono::high_resolution_clock::now();
-
-        // Don't count the first couple of iterations.
-        if (++runs > 0) {
-            total += std::chrono::duration_cast<std::chrono::nanoseconds>(finished - started).count();
-        }
-    }
-
-    return double(runs) / (double(total) / 1e9);
-}
-
-void report(mapbox::fixtures::FixtureTester* fixture, const int cols[]) {
-    std::ios::fmtflags flags(std::cerr.flags());
-    const char filling = std::cerr.fill();
-    std::cerr << std::setfill(' ');
-    std::cerr << "| " << std::left << std::setw(cols[0]) << fixture->name << " | ";
-    auto earcut = bench([&]{ fixture->earcut(); });
-    std::cerr << std::right << std::setw(cols[1] - 6) << std::fixed << std::setprecision(0) << earcut << " ops/s | ";
-    auto libtess2 = bench([&]{ fixture->libtess(); });
-    std::cerr << std::setw(cols[2] - 6) << std::setprecision(0) << libtess2 << " ops/s |" << std::endl;
-    std::cerr << std::setfill(filling);
-    std::cerr.flags(flags);
-}
-
-void separator(const int cols[]) {
-    std::ios::fmtflags flags(std::cerr.flags());
-    const char filling = std::cerr.fill();
-    std::cerr << std::setfill('-');
-    for (int i = 0; cols[i]; i++) {
-        std::cerr << "+" << std::setw(cols[i]+2) << std::cerr.fill();
-    }
-    std::cerr << std::setfill(filling);
-    std::cerr << "+" << std::endl;
-    std::cerr.flags(flags);
-}
-
-int main() {
-    std::cerr.imbue(std::locale(""));
-    const int cols[] = { 14, 18, 18, 0 };
-
-    separator(cols);
-
-    std::ios::fmtflags flags(std::cerr.flags());
-    std::cerr << "|" << std::left
-        << std::setw(cols[0]+1) << " Polygon" << " |"
-        << std::setw(cols[1]+1) << " earcut" << " |"
-        << std::setw(cols[2]+1) << " libtess2" << " |"
-        << std::endl;
-    std::cerr.flags(flags);
-
-    separator(cols);
-
+// Get benchmark fixtures - only those in the whitelist for performance reasons
+std::vector<mapbox::fixtures::FixtureTester*> getBenchmarkFixtures() {
     auto& fixtures = mapbox::fixtures::FixtureTester::collection();
     std::set<std::string> bench_whitelist = {
         "bad_hole", "building", "degenerate", "dude", "empty_square", "water_huge",
         "water_huge2", "water", "water2", "water3", "water3b", "water4"
     };
+
+    std::vector<mapbox::fixtures::FixtureTester*> result;
     for (auto fixture : fixtures) {
         if (bench_whitelist.find(fixture->name) != bench_whitelist.end()) {
-            report(fixture, cols);
+            result.push_back(fixture);
         }
     }
+    return result;
+}
 
-    separator(cols);
+// Benchmark earcut triangulation
+static void BM_EarcutTriangulation(benchmark::State& state) {
+    auto fixtures = getBenchmarkFixtures();
+    auto fixture = fixtures[static_cast<size_t>(state.range(0))];
+
+    for (auto _ : state) {
+        auto result = fixture->earcut();
+        benchmark::DoNotOptimize(result);
+    }
+    state.SetLabel(fixture->name);
+}
+
+// Benchmark libtess2 triangulation
+static void BM_LibtessTriangulation(benchmark::State& state) {
+    auto fixtures = getBenchmarkFixtures();
+    auto fixture = fixtures[static_cast<size_t>(state.range(0))];
+
+    for (auto _ : state) {
+        auto result = fixture->libtess();
+        benchmark::DoNotOptimize(result);
+    }
+    state.SetLabel(fixture->name);
+}
+
+// Register benchmarks for all fixtures
+static void RegisterBenchmarks() {
+    auto fixtures = getBenchmarkFixtures();
+
+    for (size_t i = 0; i < fixtures.size(); ++i) {
+        benchmark::RegisterBenchmark(("BM_EarcutTriangulation/" + fixtures[i]->name).c_str(),
+                                   BM_EarcutTriangulation)
+            ->Arg(static_cast<int>(i))
+            ->Unit(benchmark::kMicrosecond);
+
+        benchmark::RegisterBenchmark(("BM_LibtessTriangulation/" + fixtures[i]->name).c_str(),
+                                   BM_LibtessTriangulation)
+            ->Arg(static_cast<int>(i))
+            ->Unit(benchmark::kMicrosecond);
+    }
+}
+
+int main(int argc, char** argv) {
+    RegisterBenchmarks();
+    benchmark::Initialize(&argc, argv);
+    benchmark::RunSpecifiedBenchmarks();
+    benchmark::Shutdown();
     return 0;
 }
