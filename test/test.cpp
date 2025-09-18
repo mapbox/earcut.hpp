@@ -1,33 +1,32 @@
 #include <gtest/gtest.h>
-#include "fixtures/geometries.hpp"
 
+#include <algorithm>
 #include <iomanip>
 #include <locale>
 #include <sstream>
-#include <algorithm>
+
+#include "fixtures/geometries.hpp"
 
 template <typename Point>
-double triangleArea(const Point &a, const Point &b, const Point &c) {
+double triangleArea(const Point& a, const Point& b, const Point& c) {
     using namespace mapbox::util;
-    return double(std::abs((nth<0, Point>::get(a) - nth<0, Point>::get(c)) * (nth<1, Point>::get(b) - nth<1, Point>::get(a)) -
-                           (nth<0, Point>::get(a) - nth<0, Point>::get(b)) * (nth<1, Point>::get(c) - nth<1, Point>::get(a)))) / 2;
+    return double(std::abs(
+               (nth<0, Point>::get(a) - nth<0, Point>::get(c)) * (nth<1, Point>::get(b) - nth<1, Point>::get(a)) -
+               (nth<0, Point>::get(a) - nth<0, Point>::get(b)) * (nth<1, Point>::get(c) - nth<1, Point>::get(a)))) /
+           2;
 }
 
 template <typename Vertices, typename Indices>
-double trianglesArea(const Vertices &vertices, const Indices &indices) {
+double trianglesArea(const Vertices& vertices, const Indices& indices) {
     double area = 0;
     for (size_t i = 0; i < indices.size(); i += 3) {
-        area += triangleArea(
-            vertices[indices[i]],
-            vertices[indices[i + 1]],
-            vertices[indices[i + 2]]
-        );
+        area += triangleArea(vertices[indices[i]], vertices[indices[i + 1]], vertices[indices[i + 2]]);
     }
     return area;
 }
 
 template <typename Ring>
-double ringArea(const Ring &points) {
+double ringArea(const Ring& points) {
     using namespace mapbox::util;
     using Point = typename Ring::value_type;
     double sum = 0;
@@ -39,7 +38,7 @@ double ringArea(const Ring &points) {
 }
 
 template <typename Polygon>
-double polygonArea(const Polygon &rings) {
+double polygonArea(const Polygon& rings) {
     if (rings.empty()) return .0;
     double sum = ringArea(rings[0]);
     for (size_t i = 1; i < rings.size(); i++) {
@@ -55,8 +54,7 @@ std::string formatPercent(double num) {
     return ss.str();
 }
 
-class EarcutAreaTest : public ::testing::TestWithParam<mapbox::fixtures::FixtureTester*> {
-};
+class EarcutAreaTest : public ::testing::TestWithParam<mapbox::fixtures::FixtureTester*> {};
 
 TEST_P(EarcutAreaTest, EarcutTriangulation) {
     auto fixture = GetParam();
@@ -72,13 +70,13 @@ TEST_P(EarcutAreaTest, EarcutTriangulation) {
 
     if (expectedTriangles > 0) {
         const auto area = trianglesArea(earcut.vertices, earcut.indices);
-        const double deviation = (expectedArea == area) ? 0 :
-                expectedArea == 0 ? std::numeric_limits<double>::infinity() :
-                std::abs(area - expectedArea) / expectedArea;
+        const double deviation = (expectedArea == area) ? 0
+                                 : expectedArea == 0    ? std::numeric_limits<double>::infinity()
+                                                        : std::abs(area - expectedArea) / expectedArea;
 
         EXPECT_LE(deviation, fixture->expectedEarcutDeviation)
-            << fixture->name << ": earcut deviation " << formatPercent(deviation)
-            << " is not less than " << formatPercent(fixture->expectedEarcutDeviation);
+            << fixture->name << ": earcut deviation " << formatPercent(deviation) << " is not less than "
+            << formatPercent(fixture->expectedEarcutDeviation);
     }
 }
 
@@ -88,30 +86,28 @@ TEST_P(EarcutAreaTest, LibtessTriangulation) {
     const auto expectedArea = polygonArea(fixture->polygon());
     const auto libtess = fixture->libtess();
     const auto area = trianglesArea(libtess.vertices, libtess.indices);
-    const double deviation = (expectedArea == area) ? 0 :
-            expectedArea == 0 ? std::numeric_limits<double>::infinity() :
-            std::abs(area - expectedArea) / expectedArea;
+    const double deviation = (expectedArea == area) ? 0
+                             : expectedArea == 0    ? std::numeric_limits<double>::infinity()
+                                                    : std::abs(area - expectedArea) / expectedArea;
 
     EXPECT_LE(deviation, fixture->expectedLibtessDeviation)
-        << fixture->name << ": libtess2 deviation " << formatPercent(deviation)
-        << " is not less than " << formatPercent(fixture->expectedLibtessDeviation);
+        << fixture->name << ": libtess2 deviation " << formatPercent(deviation) << " is not less than "
+        << formatPercent(fixture->expectedLibtessDeviation);
 }
 
 TEST(EarcutBasicTest, EmptyInput) {
-    auto polygon = mapbox::fixtures::Polygon<std::pair<int, int>> {};
+    auto polygon = mapbox::fixtures::Polygon<std::pair<int, int>>{};
     EarcutTesselator<int, decltype(polygon)> tesselator(polygon);
     tesselator.run();
     EXPECT_TRUE(tesselator.indices().empty()) << "empty input should produce empty result";
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    FixtureTests,
-    EarcutAreaTest,
-    ::testing::ValuesIn(mapbox::fixtures::FixtureTester::collection()),
-    [](const ::testing::TestParamInfo<mapbox::fixtures::FixtureTester*>& info) {
-        std::string name = info.param->name;
-        std::replace(name.begin(), name.end(), '-', '_');
-        std::replace(name.begin(), name.end(), '.', '_');
-        return name;
-    }
-);
+INSTANTIATE_TEST_SUITE_P(FixtureTests,
+                         EarcutAreaTest,
+                         ::testing::ValuesIn(mapbox::fixtures::FixtureTester::collection()),
+                         [](const ::testing::TestParamInfo<mapbox::fixtures::FixtureTester*>& info) {
+                             std::string name = info.param->name;
+                             std::replace(name.begin(), name.end(), '-', '_');
+                             std::replace(name.begin(), name.end(), '.', '_');
+                             return name;
+                         });

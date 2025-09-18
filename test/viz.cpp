@@ -1,6 +1,5 @@
 #include "comparison/earcut.hpp"
 #include "comparison/libtess2.hpp"
-
 #include "fixtures/geometries.hpp"
 
 #if _MSC_VER >= 1900
@@ -9,12 +8,12 @@
 
 #include <GLFW/glfw3.h>
 
-#include <cstdlib>
 #include <cmath>
-#include <vector>
+#include <cstdlib>
 #include <memory>
+#include <vector>
 
-static GLFWwindow *window = nullptr;
+static GLFWwindow* window = nullptr;
 static const int width = 1024;
 static const int height = 1024;
 static bool drawFill = true, drawMesh = true, drawOutline = true;
@@ -86,12 +85,12 @@ struct Camera2D {
         translateY = .0;
     }
     /* transforms world coordinate to screen range [-1,1] with double precision */
-    inline void toScreen(double *x, double *y) {
+    inline void toScreen(double* x, double* y) {
         *x = *x * mx + cx;
         *y = *y * my + cy;
     }
     /* transforms screen coordinates in range [-1,1] to world coordinates with double precision */
-    inline void toWorld(double *x, double *y) {
+    inline void toWorld(double* x, double* y) {
         *x = (*x - cx) / mx;
         *y = (*y - cy) / my;
     }
@@ -117,12 +116,14 @@ public:
 class DrawableTesselator : public DrawablePolygon {
     mapbox::fixtures::FixtureTester::TesselatorResult shape;
     mapbox::fixtures::DoublePolygon const& polygon;
+
 public:
     explicit DrawableTesselator(mapbox::fixtures::FixtureTester::TesselatorResult tessellation,
-                                mapbox::fixtures::DoublePolygon const& poly) : shape(tessellation), polygon(poly) { }
+                                mapbox::fixtures::DoublePolygon const& poly)
+        : shape(tessellation), polygon(poly) {}
     void drawMesh() override {
-        const auto &v = shape.vertices;
-        const auto &x = shape.indices;
+        const auto& v = shape.vertices;
+        const auto& x = shape.indices;
         glBegin(GL_LINES);
         glColor4fv(colorMesh);
         for (size_t i = 0; i < x.size(); i += 3) {
@@ -142,7 +143,7 @@ public:
             glColor4fv(i == 0 ? colorOutline : colorInline);
             for (std::size_t j = 0; j < ring.size(); j++) {
                 auto& p0 = ring[j];
-                auto& p1 = ring[(j+1) % ring.size()];
+                auto& p1 = ring[(j + 1) % ring.size()];
                 cam.vec2(std::get<0>(p0), std::get<1>(p0));
                 cam.vec2(std::get<0>(p1), std::get<1>(p1));
             }
@@ -150,8 +151,8 @@ public:
         glEnd();
     }
     void drawFill() override {
-        const auto &v = shape.vertices;
-        const auto &x = shape.indices;
+        const auto& v = shape.vertices;
+        const auto& x = shape.indices;
         glBegin(GL_TRIANGLES);
         glColor4fv(colorFill);
         for (const auto pt : x) {
@@ -164,15 +165,15 @@ public:
 class DrawableEarcut : public DrawableTesselator {
 public:
     explicit DrawableEarcut(mapbox::fixtures::FixtureTester* fixture)
-            : DrawableTesselator(fixture->earcut(), fixture->polygon()) { }
-    const char *name() override { return "earcut"; };
+        : DrawableTesselator(fixture->earcut(), fixture->polygon()) {}
+    const char* name() override { return "earcut"; };
 };
 
 class DrawableLibtess : public DrawableTesselator {
 public:
     explicit DrawableLibtess(mapbox::fixtures::FixtureTester* fixture)
-            : DrawableTesselator(fixture->libtess(), fixture->polygon()) { }
-    const char *name() override { return "libtess2"; };
+        : DrawableTesselator(fixture->libtess(), fixture->polygon()) {}
+    const char* name() override { return "libtess2"; };
 };
 
 class DrawableScanLineFill : public DrawablePolygon {
@@ -183,9 +184,7 @@ class DrawableScanLineFill : public DrawablePolygon {
         float offset;
         Edge* next = nullptr;
         Edge(double x1, double y1, double x2, double y2)
-                : yMin((float)std::min<double>(y1, y2)),
-                  yMax((float)std::max<double>(y1, y2))
-        {
+            : yMin((float)std::min<double>(y1, y2)), yMax((float)std::max<double>(y1, y2)) {
             const double dx = x1 - x2;
             const double dy = y1 - y2;
             scale = (float)(dx / dy);
@@ -198,23 +197,24 @@ class DrawableScanLineFill : public DrawablePolygon {
         }
     };
     mapbox::fixtures::FixtureTester* shape;
-    std::vector<Edge*> activeList; /* contains current sorted intersections */
+    std::vector<Edge*> activeList;             /* contains current sorted intersections */
     std::vector<std::vector<Edge>> edgeTables; /* contains all edges sorted by yMin */
 public:
     explicit DrawableScanLineFill(mapbox::fixtures::FixtureTester* fixture) : shape(fixture) {
         auto& polygon = shape->polygon();
         edgeTables.reserve(polygon.size());
-        for (const auto &ring : polygon) {
+        for (const auto& ring : polygon) {
             std::vector<Edge> edgeTable;
             edgeTable.reserve(ring.size());
             for (std::size_t i = 1; i <= ring.size(); i++) {
                 const auto &p0 = ring[i - 1], p1 = i == ring.size() ? ring[0] : ring[i];
                 const double x1 = std::get<0>(p0), y1 = std::get<1>(p0), x2 = std::get<0>(p1), y2 = std::get<1>(p1);
-                if (y1 != y2) { edgeTable.emplace_back(x1, y1, x2, y2); }
+                if (y1 != y2) {
+                    edgeTable.emplace_back(x1, y1, x2, y2);
+                }
             }
-            std::sort(edgeTable.begin(), edgeTable.end(), [&](Edge const &a, Edge const &b) {
-                return a.yMin < b.yMin;
-            });
+            std::sort(
+                edgeTable.begin(), edgeTable.end(), [&](Edge const& a, Edge const& b) { return a.yMin < b.yMin; });
             edgeTables.push_back(std::move(edgeTable));
         }
     }
@@ -224,7 +224,7 @@ public:
 
         // create intrusive sorted edge list
         for (std::size_t i = 1; i < edgeTable.size(); i++) {
-            edgeTable[i-1].next = &edgeTable[i];
+            edgeTable[i - 1].next = &edgeTable[i];
         }
         Edge* edgeList = edgeTable.empty() ? nullptr : &edgeTable[0];
 
@@ -233,9 +233,11 @@ public:
         bottom += lineWidth;
 
         double y0 = top;
-        while(y0 < bottom && edgeList) {
+        while (y0 < bottom && edgeList) {
             double y1 = y0 + lineWidth;
-            if (y1 == y0) { y1 = std::nextafter(y1, bottom); }
+            if (y1 == y0) {
+                y1 = std::nextafter(y1, bottom);
+            }
             const double y = y0 + halfWidth;
 
             activeList.clear();
@@ -245,7 +247,7 @@ public:
                 if (min <= y && y < max) {
                     activeList.push_back(edge);
                 }
-                if (min > y)  {
+                if (min > y) {
                     break;
                 } else if (y >= max) {
                     // unlink edge
@@ -255,13 +257,13 @@ public:
                     prevEdge = edge;
                 }
             }
-            std::sort(activeList.begin(), activeList.end(), [&](Edge *a, Edge *b) {
+            std::sort(activeList.begin(), activeList.end(), [&](Edge* a, Edge* b) {
                 return a->intersection(y) < b->intersection(y);
             });
 
             double x1y0 = 0, x1y1 = 0;
             for (std::size_t i = 0; i < activeList.size(); i++) {
-                Edge *edge = activeList[i];
+                Edge* edge = activeList[i];
 
                 // use slope to make MSAA possible
                 const double x2y0 = edge->intersection(std::max<double>(edge->yMin, y0));
@@ -302,18 +304,19 @@ public:
             glColor4fv(i == 0 ? colorOutline : colorInline);
             for (std::size_t j = 0; j < ring.size(); j++) {
                 auto& p0 = ring[j];
-                auto& p1 = ring[(j+1) % ring.size()];
+                auto& p1 = ring[(j + 1) % ring.size()];
                 cam.vec2(std::get<0>(p0), std::get<1>(p0));
                 cam.vec2(std::get<0>(p1), std::get<1>(p1));
             }
         }
         glEnd();
     }
-    void drawMesh() override { }
-    const char *name() override { return "scanline-fill"; }
+    void drawMesh() override {}
+    const char* name() override { return "scanline-fill"; }
 };
 
-std::unique_ptr<DrawablePolygon> DrawablePolygon::makeDrawable(std::size_t index, mapbox::fixtures::FixtureTester* fixture) {
+std::unique_ptr<DrawablePolygon> DrawablePolygon::makeDrawable(std::size_t index,
+                                                               mapbox::fixtures::FixtureTester* fixture) {
     if (index == 0) {
         return std::unique_ptr<DrawablePolygon>(new DrawableEarcut(fixture));
     } else if (index == 1) {
@@ -325,8 +328,7 @@ std::unique_ptr<DrawablePolygon> DrawablePolygon::makeDrawable(std::size_t index
 
 static std::array<std::unique_ptr<DrawablePolygon>, 3> tessellators;
 
-
-mapbox::fixtures::FixtureTester *getFixture(std::size_t i) {
+mapbox::fixtures::FixtureTester* getFixture(std::size_t i) {
     auto& fixtures = mapbox::fixtures::FixtureTester::collection();
     if (fixtures.empty()) {
         assert(false);
@@ -348,8 +350,7 @@ int main() {
         return 1;
     }
 
-    glfwSetKeyCallback(window,
-                       [](GLFWwindow *win, int key, int /*scancode*/, int action, int /*mods*/) {
+    glfwSetKeyCallback(window, [](GLFWwindow* win, int key, int /*scancode*/, int action, int /*mods*/) {
         if (action != GLFW_PRESS && action != GLFW_REPEAT) {
             return;
         }
@@ -402,15 +403,13 @@ int main() {
         dirtyViewport |= cam.scale(yoffset);
     });
 
-    glfwSetMouseButtonCallback(window, [](GLFWwindow* /* window */, int button, int action, int /* mods */){
+    glfwSetMouseButtonCallback(window, [](GLFWwindow* /* window */, int button, int action, int /* mods */) {
         if (button == GLFW_MOUSE_BUTTON_LEFT) {
             mouseDrag = action != GLFW_RELEASE;
         }
     });
 
-    glfwSetFramebufferSizeCallback(window, [](GLFWwindow * /*win*/, int w, int h) {
-        cam.setView(w, h);
-    });
+    glfwSetFramebufferSizeCallback(window, [](GLFWwindow* /*win*/, int w, int h) { cam.setView(w, h); });
 
     int fbWidth, fbHeight;
     glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
@@ -438,7 +437,7 @@ int main() {
         }
 
         if (dirtyShape) {
-            for (auto &tessellator : tessellators) {
+            for (auto& tessellator : tessellators) {
                 tessellator.reset(nullptr);
             }
 
@@ -448,7 +447,7 @@ int main() {
             auto minY = std::numeric_limits<double>::max();
             auto maxY = std::numeric_limits<double>::min();
             if (!polygon.empty()) {
-                for (const auto &pt : polygon[0]) {
+                for (const auto& pt : polygon[0]) {
                     minX = std::min<double>(minX, std::get<0>(pt));
                     minY = std::min<double>(minY, std::get<1>(pt));
                     maxX = std::max<double>(maxX, std::get<0>(pt));
@@ -479,8 +478,8 @@ int main() {
             }
 
             if (dirtyTessellator || dirtyShape) {
-                glfwSetWindowTitle(window, (std::string(drawable->name()) + ": "
-                                            + getFixture(shapeIndex)->name).c_str());
+                glfwSetWindowTitle(window,
+                                   (std::string(drawable->name()) + ": " + getFixture(shapeIndex)->name).c_str());
             }
 
             if (!drawMesh && !drawFill && !drawOutline) {

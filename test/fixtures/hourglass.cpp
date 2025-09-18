@@ -5,9 +5,13 @@
 namespace mapbox {
 namespace fixtures {
 
-static const Fixture<short> hourglass("hourglass", 2, 1e-14, 0.000001, {
-    {{7,18},{7,15},{5,15},{7,13},{7,15},{17,17}},
-});
+static const Fixture<short> hourglass("hourglass",
+                                      2,
+                                      1e-14,
+                                      0.000001,
+                                      {
+                                          {{7, 18}, {7, 15}, {5, 15}, {7, 13}, {7, 15}, {17, 17}},
+                                      });
 
 }
-}
+} // namespace mapbox
