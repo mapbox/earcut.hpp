@@ -1,6 +1,6 @@
 #pragma once
 #ifdef __GNUC__
-#pragma GCC diagnostic push 
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 #endif
 #include "libtess2/tesselator.h"
@@ -8,10 +8,10 @@
 #pragma GCC diagnostic pop
 #endif
 
-#include <memory>
-#include <vector>
 #include <array>
+#include <memory>
 #include <stdexcept>
+#include <vector>
 
 template <typename Coord, typename Polygon>
 class Libtess2Tesselator {
@@ -21,13 +21,12 @@ class Libtess2Tesselator {
     using Indices = std::vector<uint32_t>;
 
 public:
-    Libtess2Tesselator(const Polygon &polygon)
-        : tess(std::unique_ptr<TESStesselator, tessDeleter>(tessNewTess(nullptr)))
-    {
+    Libtess2Tesselator(const Polygon& polygon)
+        : tess(std::unique_ptr<TESStesselator, tessDeleter>(tessNewTess(nullptr))) {
         // Convert the polygon to Libtess2 format.
-        for (const auto &ring : polygon) {
+        for (const auto& ring : polygon) {
             std::vector<TESSreal> tessRing;
-            for (const auto &pt : ring) {
+            for (const auto& pt : ring) {
                 tessRing.push_back(static_cast<TESSreal>(pt.first));
                 tessRing.push_back(static_cast<TESSreal>(pt.second));
             }
@@ -39,11 +38,12 @@ public:
         dirty = true;
 
         // Add polygon data
-        for (const auto &tessRing : tessPolygon) {
+        for (const auto& tessRing : tessPolygon) {
             tessAddContour(tess.get(), vertexSize, tessRing.data(), stride, (int)tessRing.size() / vertexSize);
         }
 
-        int status = tessTesselate(tess.get(), TESS_WINDING_POSITIVE, TESS_POLYGONS, verticesPerTriangle, vertexSize, 0);
+        int status =
+            tessTesselate(tess.get(), TESS_WINDING_POSITIVE, TESS_POLYGONS, verticesPerTriangle, vertexSize, 0);
         if (!status) {
 #if defined(__cpp_exceptions) || defined(__EXCEPTIONS)
             throw std::runtime_error("tesselation failed");
@@ -53,14 +53,14 @@ public:
         }
     }
 
-    auto indices() -> const Indices & {
+    auto indices() -> const Indices& {
         if (dirty) {
             indexData.clear();
             const auto elements = tessGetElements(tess.get());
             const auto elementCount = tessGetElementCount(tess.get());
 
-             for (int i = 0; i < elementCount; i++) {
-                const TESSindex *group = &elements[i * verticesPerTriangle];
+            for (int i = 0; i < elementCount; i++) {
+                const TESSindex* group = &elements[i * verticesPerTriangle];
                 if (group[0] != TESS_UNDEF && group[1] != TESS_UNDEF && group[2] != TESS_UNDEF) {
                     indexData.push_back(static_cast<uint32_t>(group[0]));
                     indexData.push_back(static_cast<uint32_t>(group[1]));
@@ -72,15 +72,14 @@ public:
         return indexData;
     }
 
-    auto vertices() -> const Vertices & {
+    auto vertices() -> const Vertices& {
         if (dirty) {
             vertexData.clear();
 
             const auto vertices = tessGetVertices(tess.get());
             const auto vertexCount = tessGetVertexCount(tess.get());
             for (int i = 0; i < vertexCount; i++) {
-                vertexData.emplace_back(Vertex{{ Coord(vertices[i * vertexSize]),
-                                                 Coord(vertices[i * vertexSize + 1]) }});
+                vertexData.emplace_back(Vertex{{Coord(vertices[i * vertexSize]), Coord(vertices[i * vertexSize + 1])}});
             }
         }
 
@@ -93,7 +92,7 @@ private:
     static const int verticesPerTriangle = 3;
 
     struct tessDeleter {
-        void operator()(TESStesselator *t) const { tessDeleteTess(t); }
+        void operator()(TESStesselator* t) const { tessDeleteTess(t); }
     };
 
     std::vector<std::vector<TESSreal>> tessPolygon;

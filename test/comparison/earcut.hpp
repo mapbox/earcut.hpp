@@ -1,7 +1,6 @@
 #pragma once
-#include <mapbox/earcut.hpp>
-
 #include <array>
+#include <mapbox/earcut.hpp>
 #include <memory>
 #include <vector>
 
@@ -11,33 +10,24 @@ public:
     using Vertex = std::array<Coord, 2>;
     using Vertices = std::vector<Vertex>;
 
-    EarcutTesselator(const Polygon &polygon_)
-        : polygon(polygon_)
-    {
+    EarcutTesselator(const Polygon& polygon_) : polygon(polygon_) {
         for (const auto& ring : polygon_) {
             for (const auto& vertex : ring) {
-                vertices_.emplace_back(Vertex {{ Coord(std::get<0>(vertex)),
-                                                 Coord(std::get<1>(vertex)) }});
+                vertices_.emplace_back(Vertex{{Coord(std::get<0>(vertex)), Coord(std::get<1>(vertex))}});
             }
         }
     }
 
-    EarcutTesselator & operator=(const EarcutTesselator&) = delete;
+    EarcutTesselator& operator=(const EarcutTesselator&) = delete;
 
-    void run() {
-        indices_ = mapbox::earcut(polygon);
-    }
+    void run() { indices_ = mapbox::earcut(polygon); }
 
-    std::vector<uint32_t> const& indices() const {
-        return indices_;
-    }
+    std::vector<uint32_t> const& indices() const { return indices_; }
 
-    Vertices const& vertices() const {
-        return vertices_;
-    }
+    Vertices const& vertices() const { return vertices_; }
 
 private:
-    const Polygon &polygon;
+    const Polygon& polygon;
     Vertices vertices_;
     std::vector<uint32_t> indices_;
 };

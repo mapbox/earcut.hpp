@@ -1,39 +1,38 @@
 #pragma once
 
-#include <utility>
-#include <vector>
+#include <algorithm>
+#include <iostream>
 #include <map>
 #include <string>
-#include <utility>
-#include <string>
-#include <iostream>
-#include <algorithm>
 #include <type_traits>
+#include <utility>
+#include <vector>
 
 #include "../comparison/earcut.hpp"
 #include "../comparison/libtess2.hpp"
 
 namespace mapbox {
 namespace fixtures {
-template <typename T> using Polygon = std::vector<std::vector<T>>;
-template <typename T> using Triangles = std::vector<T>;
+template <typename T>
+using Polygon = std::vector<std::vector<T>>;
+template <typename T>
+using Triangles = std::vector<T>;
 using DoublePoint = std::pair<double, double>;
 using DoubleTriangles = Triangles<DoublePoint>;
 using DoublePolygon = Polygon<DoublePoint>;
 const double Infinity = std::numeric_limits<double>::infinity();
 
-template<class T>
+template <class T>
 class Collector {
     std::vector<T> objects;
     Collector<T>() = default;
+
 public:
     static std::vector<T>& collection() {
         static Collector singleton;
         return singleton.objects;
     }
-    static void add(T const& object) {
-        collection().push_back(object);
-    }
+    static void add(T const& object) { collection().push_back(object); }
     static void remove(T const& object) {
         auto& objects = collection();
         objects.erase(std::remove(objects.begin(), objects.end(), object), objects.end());
@@ -51,12 +50,13 @@ public:
     const double expectedEarcutDeviation;
     const double expectedLibtessDeviation;
     FixtureTester(std::string testname, std::size_t triangles, double deviation, double libtessdeviation)
-    : name(std::move(testname)), expectedTriangles(triangles), expectedEarcutDeviation(deviation), expectedLibtessDeviation(libtessdeviation) {
+        : name(std::move(testname)),
+          expectedTriangles(triangles),
+          expectedEarcutDeviation(deviation),
+          expectedLibtessDeviation(libtessdeviation) {
         Collector<FixtureTester*>::add(this);
     }
-    virtual ~FixtureTester() {
-        Collector<FixtureTester*>::remove(this);
-    }
+    virtual ~FixtureTester() { Collector<FixtureTester*>::remove(this); }
     virtual TesselatorResult earcut() = 0;
     virtual TesselatorResult libtess() = 0;
     virtual DoublePolygon const& polygon() = 0;
@@ -74,11 +74,17 @@ private:
     DoublePolygon doublePolygon;
     EarcutTesselator<double, Polygon<std::pair<T, T>>> earcutTesselator;
     Libtess2Tesselator<double, Polygon<std::pair<T, T>>> libtessTesselator;
+
 public:
-    Fixture<T>(std::string const& name, std::size_t expectedTriangles,
-        double expectedDeviation, double expectedLibtessDeviation, Polygon<std::pair<T, T>> const& p)
+    Fixture<T>(std::string const& name,
+               std::size_t expectedTriangles,
+               double expectedDeviation,
+               double expectedLibtessDeviation,
+               Polygon<std::pair<T, T>> const& p)
         : FixtureTester(name, expectedTriangles, expectedDeviation, expectedLibtessDeviation),
-          inputPolygon(p), earcutTesselator(inputPolygon), libtessTesselator(inputPolygon) {
+          inputPolygon(p),
+          earcutTesselator(inputPolygon),
+          libtessTesselator(inputPolygon) {
         doublePolygon.reserve(inputPolygon.size());
         for (auto& ring : inputPolygon) {
             std::vector<std::pair<double, double>> r;
@@ -91,16 +97,14 @@ public:
     }
     TesselatorResult earcut() override {
         earcutTesselator.run();
-        return { earcutTesselator.vertices(), earcutTesselator.indices() };
+        return {earcutTesselator.vertices(), earcutTesselator.indices()};
     }
     TesselatorResult libtess() override {
         libtessTesselator.run();
-        return { libtessTesselator.vertices(), libtessTesselator.indices() };
+        return {libtessTesselator.vertices(), libtessTesselator.indices()};
     }
-    DoublePolygon const& polygon() override {
-        return doublePolygon;
-    }
+    DoublePolygon const& polygon() override { return doublePolygon; }
 };
 
-}
-}
+} // namespace fixtures
+} // namespace mapbox

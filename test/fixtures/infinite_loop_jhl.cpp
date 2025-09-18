@@ -5,10 +5,14 @@
 namespace mapbox {
 namespace fixtures {
 
-static const Fixture<double> infinite_loop_jhl("infinite_loop_jhl", 0, 1e-14, Infinity, {
-    {{-1,2},{0,0},{2,-1}},
-    {{2,-1},{0,1e-28},{-1,2}},
-});
+static const Fixture<double> infinite_loop_jhl("infinite_loop_jhl",
+                                               0,
+                                               1e-14,
+                                               Infinity,
+                                               {
+                                                   {{-1, 2}, {0, 0}, {2, -1}},
+                                                   {{2, -1}, {0, 1e-28}, {-1, 2}},
+                                               });
 
 }
-}
+} // namespace mapbox

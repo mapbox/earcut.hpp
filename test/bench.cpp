@@ -1,16 +1,25 @@
 #include <benchmark/benchmark.h>
-#include "fixtures/geometries.hpp"
 
 #include <set>
 #include <vector>
 
+#include "fixtures/geometries.hpp"
+
 // Get benchmark fixtures - only those in the whitelist for performance reasons
 std::vector<mapbox::fixtures::FixtureTester*> getBenchmarkFixtures() {
     auto& fixtures = mapbox::fixtures::FixtureTester::collection();
-    std::set<std::string> bench_whitelist = {
-        "bad_hole", "building", "degenerate", "dude", "empty_square", "water_huge",
-        "water_huge2", "water", "water2", "water3", "water3b", "water4"
-    };
+    std::set<std::string> bench_whitelist = {"bad_hole",
+                                             "building",
+                                             "degenerate",
+                                             "dude",
+                                             "empty_square",
+                                             "water_huge",
+                                             "water_huge2",
+                                             "water",
+                                             "water2",
+                                             "water3",
+                                             "water3b",
+                                             "water4"};
 
     std::vector<mapbox::fixtures::FixtureTester*> result;
     for (auto fixture : fixtures) {
@@ -50,13 +59,11 @@ static void RegisterBenchmarks() {
     auto fixtures = getBenchmarkFixtures();
 
     for (size_t i = 0; i < fixtures.size(); ++i) {
-        benchmark::RegisterBenchmark(("BM_EarcutTriangulation/" + fixtures[i]->name).c_str(),
-                                   BM_EarcutTriangulation)
+        benchmark::RegisterBenchmark(("BM_EarcutTriangulation/" + fixtures[i]->name).c_str(), BM_EarcutTriangulation)
             ->Arg(static_cast<int>(i))
             ->Unit(benchmark::kMicrosecond);
 
-        benchmark::RegisterBenchmark(("BM_LibtessTriangulation/" + fixtures[i]->name).c_str(),
-                                   BM_LibtessTriangulation)
+        benchmark::RegisterBenchmark(("BM_LibtessTriangulation/" + fixtures[i]->name).c_str(), BM_LibtessTriangulation)
             ->Arg(static_cast<int>(i))
             ->Unit(benchmark::kMicrosecond);
     }
