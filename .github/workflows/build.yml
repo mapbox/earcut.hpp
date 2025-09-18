@@ -152,6 +152,57 @@ jobs:
           name: coverage-report
           path: coverage/
 
+  Sanitizers:
+    runs-on: ubuntu-latest
+
+    container:
+      image: ubuntu:24.04
+
+    env:
+      CXX: clang++
+      DEBIAN_FRONTEND: noninteractive
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Update Git
+        run: |
+          apt-get update
+          apt-get install -y git
+          git --version
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          submodules: true
+
+      - name: Install dependencies
+        run: |
+          apt-get install -y cmake ninja-build clang xorg-dev
+          clang++ --version
+          cmake --version
+          ninja --version
+
+      - name: Create build directory
+        run: mkdir -p build
+        shell: bash
+
+      - name: Configure CMake with sanitizers
+        working-directory: build
+        run: cmake .. -GNinja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g"
+
+      - name: Build all targets
+        working-directory: build
+        run: ninja
+
+      - name: Run tests with sanitizers
+        run: build/tests
+        env:
+          ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:abort_on_error=1
+
   MacOS:
     strategy:
       fail-fast: false
