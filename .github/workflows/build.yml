@@ -1,0 +1,106 @@
+name: Build and test project
+
+on:
+  push:
+
+jobs:
+  Linux:
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - "ubuntu:22.04" # gcc 12.3.0, clang 14.0.0, cmake 3.22.1
+          - "ubuntu:24.04" # gcc 13.2.0, clang 18.1.3, cmake 3.28.3
+        cpp_compiler:
+          - clang++
+          - g++
+
+    runs-on: ubuntu-latest
+
+    container:
+      image: ${{ matrix.os }}
+
+    env:
+      CXX: ${{ matrix.cpp_compiler }}
+      DEBIAN_FRONTEND: noninteractive
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Update Git
+        run: |
+          apt-get update
+          apt-get install -y git
+          git --version
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          submodules: true
+
+      - name: Install Compiler
+        run: |
+          apt-get install -y cmake ninja-build clang g++ xorg-dev
+          clang --version
+          g++ --version
+          cmake --version
+          ninja --version
+
+      - name: Create build directory
+        run: mkdir -p build
+        shell: bash
+
+      - name: Configure CMake
+        working-directory: build
+        run: cmake .. -GNinja
+
+      - name: Build all targets
+        working-directory: build
+        run: ninja
+
+      - name: Run tests
+        run: build/tests
+
+  MacOS:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - "macos-13"
+          - "macos-14"
+
+    runs-on: ${{ matrix.os }}
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          submodules: true
+
+      - name: Install CMake & Ninja
+        run: |
+          brew install cmake ninja
+          cmake --version
+          ninja --version
+
+      - name: Create build directory
+        run: mkdir -p build
+        shell: bash
+
+      - name: Configure CMake
+        working-directory: build
+        run: cmake .. -GNinja
+
+      - name: Build all targets
+        working-directory: build
+        run: ninja
+
+      - name: Run tests
+        run: build/tests
