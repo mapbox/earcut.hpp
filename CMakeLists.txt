@@ -27,7 +27,10 @@ set(CMAKE_CXX_STANDARD 14)
 file(GLOB FIXTURE_SOURCE_FILES test/fixtures/*.cpp test/fixtures/*.hpp)
 source_group(fixtures FILES ${FIXTURE_SOURCE_FILES})
 add_library(fixtures OBJECT ${FIXTURE_SOURCE_FILES})
-target_compile_options(fixtures PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/Od>)
+target_compile_options(fixtures PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/Od>
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-ffp-contract=off>
+)
 
 # In CMake 3.12, use target_link_libraries(fixtures PUBLIC earcut_hpp libtess2).
 # Since we support down to CMake 3.2, we need to manually propagate usage requirements of earcut_hpp
@@ -91,6 +94,12 @@ if (EARCUT_BUILD_TESTS)
 
     add_executable(tests test/test.cpp $<TARGET_OBJECTS:fixtures>)
     target_link_libraries(tests PRIVATE earcut_hpp common gtest gtest_main)
+
+    # Fix floating-point precision issues on different architectures (see issues #97 and #103)
+    target_compile_options(tests PRIVATE
+        $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-ffp-contract=off>
+    )
+
     add_test(NAME earcut_tests COMMAND tests)
 endif()
 if (EARCUT_BUILD_BENCH)
