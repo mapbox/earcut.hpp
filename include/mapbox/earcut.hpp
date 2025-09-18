@@ -96,43 +96,87 @@ private:
     template <typename T, typename Alloc = std::allocator<T>>
     class ObjectPool {
     public:
-        ObjectPool() { }
-        ObjectPool(std::size_t blockSize_) {
-            reset(blockSize_);
+        ObjectPool() {
+            allocateNewBlock(256);
+        }
+        ObjectPool(std::size_t blockSize_) : baseBlockSize(blockSize_) {
+            allocateNewBlock(std::max<std::size_t>(blockSize_, 256));
         }
         ~ObjectPool() {
             clear();
         }
         template <typename... Args>
         T* construct(Args&&... args) {
-            if (currentIndex >= blockSize) {
-                currentBlock = alloc_traits::allocate(alloc, blockSize);
-                allocations.emplace_back(currentBlock);
-                currentIndex = 0;
+            // If current block is full, move to next block or allocate new one
+            if (currentIndex >= baseBlockSize) {
+                currentBlockIndex++;
+                if (currentBlockIndex < memoryBlocks.size()) {
+                    // Reuse existing block
+                    currentIndex = 0;
+                } else {
+                    // Allocate a new one
+                    allocateNewBlock(baseBlockSize);
+                }
             }
-            T* object = &currentBlock[currentIndex++];
+
+            T* object = memoryBlocks[currentBlockIndex].get() + currentIndex;
             alloc_traits::construct(alloc, object, std::forward<Args>(args)...);
+            totalObjects++;
+            currentIndex++;
             return object;
         }
-        void reset(std::size_t newBlockSize) {
-            for (auto allocation : allocations) {
-                alloc_traits::deallocate(alloc, allocation, blockSize);
-            }
-            allocations.clear();
-            blockSize = std::max<std::size_t>(1, newBlockSize);
-            currentBlock = nullptr;
-            currentIndex = blockSize;
+        void reset() {
+            clear();
         }
-        void clear() { reset(blockSize); }
+        void clear() {
+            // Destroy all objects, but keep blocks allocated for reuse
+            std::size_t objectsDestroyed = 0;
+            for (std::size_t blockIdx = 0; blockIdx < memoryBlocks.size() && objectsDestroyed < totalObjects; ++blockIdx) {
+                // check if we are in the last block
+                std::size_t objectsInThisBlock = std::min(baseBlockSize, totalObjects - objectsDestroyed);
+                for (std::size_t i = 0; i < objectsInThisBlock; ++i) {
+                    T* object = memoryBlocks[blockIdx].get() + i;
+                    alloc_traits::destroy(alloc, object);
+                }
+                objectsDestroyed += objectsInThisBlock;
+            }
+            // Reset to start from first block again
+            currentBlockIndex = 0;
+            currentIndex = 0;
+            totalObjects = 0;
+        }
     private:
-        T* currentBlock = nullptr;
-        std::size_t currentIndex = 1;
-        std::size_t blockSize = 1;
-        std::vector<T*> allocations;
         Alloc alloc;
         typedef typename std::allocator_traits<Alloc> alloc_traits;
+        
+        // Custom deleter that uses the allocator
+        struct AllocDeleter {
+            Alloc alloc;
+            std::size_t capacity;
+            void operator()(T* ptr) {
+                alloc_traits::deallocate(alloc, ptr, capacity);
+            }
+        };
+        
+        std::vector<std::unique_ptr<T[], AllocDeleter>> memoryBlocks;
+        std::vector<std::size_t> blockCapacities;
+        std::size_t currentBlockIndex = 0;
+        std::size_t currentIndex = 0;
+        std::size_t totalObjects = 0;
+        std::size_t baseBlockSize = 256;
+
+        void allocateNewBlock(std::size_t capacity) {
+            T* rawMemory = alloc_traits::allocate(alloc, capacity);
+            auto newBlock = std::unique_ptr<T[], AllocDeleter>(rawMemory, AllocDeleter{alloc, capacity});
+            memoryBlocks.push_back(std::move(newBlock));
+            blockCapacities.push_back(capacity);
+            currentBlockIndex = memoryBlocks.size() - 1;
+            currentIndex = 0;
+        }
     };
-    ObjectPool<Node> nodes;
+
+    std::unique_ptr<ObjectPool<Node>> nodes;
+    std::vector<Node*> holeQueue;
 };
 
 template <typename N> template <typename Polygon>
@@ -154,7 +198,10 @@ void Earcut<N>::operator()(const Polygon& points) {
     }
 
     //estimate size of nodes and indices
-    nodes.reset(len * 3 / 2);
+    if (!nodes) {
+        std::size_t estimatedNodes = len * 3 / 2;
+        nodes = std::make_unique<ObjectPool<Node>>(std::max<std::size_t>(estimatedNodes, 256));
+    }
     indices.reserve(len + points[0].size());
 
     Node* outerNode = linkedList(points[0], true);
@@ -185,7 +232,8 @@ void Earcut<N>::operator()(const Polygon& points) {
 
     earcutLinked(outerNode);
 
-    nodes.clear();
+    nodes->clear();
+    holeQueue.clear();
 }
 
 // create a circular doubly linked list from polygon points in the specified winding order
@@ -264,8 +312,11 @@ void Earcut<N>::earcutLinked(Node* ear, int pass) {
     Node* prev;
     Node* next;
 
+    int iterations = 0;
+
     // iterate through ears, slicing them one by one
     while (ear->prev != ear->next) {
+        iterations++;
         prev = ear->prev;
         next = ear->next;
 
@@ -425,22 +476,22 @@ template <typename N> template <typename Polygon>
 typename Earcut<N>::Node*
 Earcut<N>::eliminateHoles(const Polygon& points, Node* outerNode) {
     const size_t len = points.size();
-
-    std::vector<Node*> queue;
+    
+    holeQueue.clear();
     for (size_t i = 1; i < len; i++) {
         Node* list = linkedList(points[i], false);
         if (list) {
             if (list == list->next) list->steiner = true;
-            queue.push_back(getLeftmost(list));
+            holeQueue.push_back(getLeftmost(list));
         }
     }
-    std::sort(queue.begin(), queue.end(), [](const Node* a, const Node* b) {
+    std::sort(holeQueue.begin(), holeQueue.end(), [](const Node* a, const Node* b) {
         return a->x < b->x;
     });
 
     // process holes from left to right
-    for (size_t i = 0; i < queue.size(); i++) {
-        outerNode = eliminateHole(queue[i], outerNode);
+    for (size_t i = 0; i < holeQueue.size(); i++) {
+        outerNode = eliminateHole(holeQueue[i], outerNode);
     }
 
     return outerNode;
@@ -755,8 +806,8 @@ bool Earcut<N>::middleInside(const Node* a, const Node* b) {
 template <typename N>
 typename Earcut<N>::Node*
 Earcut<N>::splitPolygon(Node* a, Node* b) {
-    Node* a2 = nodes.construct(a->i, a->x, a->y);
-    Node* b2 = nodes.construct(b->i, b->x, b->y);
+    Node* a2 = nodes->construct(a->i, a->x, a->y);
+    Node* b2 = nodes->construct(b->i, b->x, b->y);
     Node* an = a->next;
     Node* bp = b->prev;
 
@@ -779,7 +830,7 @@ Earcut<N>::splitPolygon(Node* a, Node* b) {
 template <typename N> template <typename Point>
 typename Earcut<N>::Node*
 Earcut<N>::insertNode(std::size_t i, const Point& pt, Node* last) {
-    Node* p = nodes.construct(static_cast<N>(i), util::nth<0, Point>::get(pt), util::nth<1, Point>::get(pt));
+    Node* p = nodes->construct(static_cast<N>(i), util::nth<0, Point>::get(pt), util::nth<1, Point>::get(pt));
 
     if (!last) {
         p->prev = p;
