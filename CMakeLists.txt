@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.10)
 project(earcut_hpp LANGUAGES CXX C)
 
 option(EARCUT_BUILD_TESTS "Build the earcut test program" ON)
@@ -22,12 +22,7 @@ target_include_directories(earcut_hpp INTERFACE
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-set(CMAKE_CXX_STANDARD 11)
-
-if("${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}" GREATER 3.7)
-    # Allow C++11 requirements to propagate when using recent CMake versions
-    target_compile_features(earcut_hpp INTERFACE cxx_std_11)
-endif()
+set(CMAKE_CXX_STANDARD 14)
 
 file(GLOB FIXTURE_SOURCE_FILES test/fixtures/*.cpp test/fixtures/*.hpp)
 source_group(fixtures FILES ${FIXTURE_SOURCE_FILES})
@@ -121,11 +116,11 @@ if (EARCUT_BUILD_VIZ)
         set(GLFW_BUILD_TESTS OFF CACHE BOOL "Build the GLFW test programs" FORCE)
         set(GLFW_BUILD_DOCS OFF CACHE BOOL "Build the GLFW documentation" FORCE)
         set(GLFW_INSTALL OFF CACHE BOOL "Generate installation target" FORCE)
-        add_subdirectory(glfw)
+        add_subdirectory(vendor/glfw)
     endif()
-    
+
     target_compile_definitions(viz PRIVATE GL_SILENCE_DEPRECATION)
-    
+
     # TODO: Using old variables for OpenGL package since they were added in CMake 3.8
     target_link_libraries(viz PRIVATE earcut_hpp common glfw ${OPENGL_LIBRARIES})
     target_include_directories(viz PRIVATE ${OPENGL_INCLUDE_DIR})
