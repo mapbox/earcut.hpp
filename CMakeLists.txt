@@ -82,8 +82,15 @@ endif()
 
 if (EARCUT_BUILD_TESTS)
     enable_testing()
-    add_executable(tests test/tap.cpp test/tap.hpp test/test.cpp $<TARGET_OBJECTS:fixtures>)
-    target_link_libraries(tests PRIVATE earcut_hpp common)
+
+    # GoogleTest setup
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
+    set(BUILD_GTEST ON CACHE BOOL "" FORCE)
+    add_subdirectory(vendor/googletest)
+
+    add_executable(tests test/test.cpp $<TARGET_OBJECTS:fixtures>)
+    target_link_libraries(tests PRIVATE earcut_hpp common gtest gtest_main)
     add_test(NAME earcut_tests COMMAND tests)
 endif()
 if (EARCUT_BUILD_BENCH)
