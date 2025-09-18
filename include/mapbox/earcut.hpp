@@ -34,13 +34,12 @@ public:
 
 private:
     struct Node {
-        Node(N index, double x_, double y_) : i(index), x(x_), y(y_) {}
+        Node(N index, double x_, double y_) : x(x_), y(y_), i(index), steiner(0) {}
         Node(const Node&) = delete;
         Node& operator=(const Node&) = delete;
         Node(Node&&) = delete;
         Node& operator=(Node&&) = delete;
 
-        const N i;
         const double x;
         const double y;
 
@@ -51,12 +50,16 @@ private:
         // z-order curve value
         int32_t z = 0;
 
+        // original index in polygon
+        const N i : (sizeof(N) * 8 - 1);
+
+        // indicates whether this is a steiner point
+        N steiner : 1;
+
         // previous and next nodes in z-order
         Node* prevZ = nullptr;
         Node* nextZ = nullptr;
 
-        // indicates whether this is a steiner point
-        bool steiner = false;
     };
 
     template <typename Ring> Node* linkedList(const Ring& points, const bool clockwise);
