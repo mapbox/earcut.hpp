@@ -64,6 +64,94 @@ jobs:
       - name: Run tests
         run: build/tests
 
+  Coverage:
+    runs-on: ubuntu-latest
+
+    container:
+      image: ubuntu:24.04
+
+    env:
+      CXX: g++
+      DEBIAN_FRONTEND: noninteractive
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Update Git
+        run: |
+          apt-get update
+          apt-get install -y git
+          git --version
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          submodules: true
+
+      - name: Install dependencies
+        run: |
+          apt-get install -y cmake ninja-build g++ xorg-dev lcov gnupg
+          g++ --version
+          cmake --version
+          ninja --version
+          lcov --version
+
+      - name: Create build directory
+        run: mkdir -p build
+        shell: bash
+
+      - name: Configure CMake for coverage
+        working-directory: build
+        run: cmake .. -GNinja -DCMAKE_CXX_FLAGS="--coverage" -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build all targets
+        working-directory: build
+        run: ninja
+
+      - name: Run tests
+        run: build/tests
+
+      - name: Generate coverage report
+        run: |
+          # Create coverage directory
+          mkdir -p coverage
+
+          # Capture coverage data with error suppression for template-heavy code
+          lcov --capture --directory build --output-file coverage/coverage_raw.info \
+            --ignore-errors gcov,source,mismatch --gcov-tool gcov
+
+          # Remove system headers, vendor files, and test files from coverage
+          lcov --remove coverage/coverage_raw.info '/usr/*' --output-file coverage/coverage.info \
+            --ignore-errors unused
+          lcov --remove coverage/coverage.info '*/vendor/*' --output-file coverage/coverage.info \
+            --ignore-errors unused
+          lcov --remove coverage/coverage.info '*/test/*' --output-file coverage/coverage.info \
+            --ignore-errors unused
+          lcov --remove coverage/coverage.info '*/build/*' --output-file coverage/coverage.info \
+            --ignore-errors unused
+          lcov --remove coverage/coverage.info '*/CMakeFiles/*' --output-file coverage/coverage.info \
+            --ignore-errors unused
+
+          # Only include our main header files
+          lcov --extract coverage/coverage.info '*/include/*' --output-file coverage/coverage.info \
+            --ignore-errors unused
+
+          # Generate HTML report
+          genhtml coverage/coverage.info --output-directory coverage/html \
+            --title "Earcut.hpp Coverage Report" --legend \
+            --ignore-errors source
+
+          # Show summary
+          lcov --summary coverage/coverage.info
+
+      - name: Upload coverage reports as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+
   MacOS:
     strategy:
       fail-fast: false
