@@ -34,13 +34,12 @@ public:
 
 private:
     struct Node {
-        Node(N index, double x_, double y_) : i(index), x(x_), y(y_) {}
+        Node(N index, double x_, double y_) : x(x_), y(y_), i(index), steiner(0) {}
         Node(const Node&) = delete;
         Node& operator=(const Node&) = delete;
         Node(Node&&) = delete;
         Node& operator=(Node&&) = delete;
 
-        const N i;
         const double x;
         const double y;
 
@@ -51,12 +50,36 @@ private:
         // z-order curve value
         int32_t z = 0;
 
+        // original index in polygon
+        const N i : (sizeof(N) * 8 - 1);
+
+        // indicates whether this is a steiner point
+        N steiner : 1;
+
         // previous and next nodes in z-order
         Node* prevZ = nullptr;
         Node* nextZ = nullptr;
+    };
 
-        // indicates whether this is a steiner point
-        bool steiner = false;
+    // Cache-optimized Triangle structure for repeated geometric tests
+    struct Triangle {
+        const double ax, ay;
+        const double bx, by;
+        const double cx, cy;
+
+        Triangle(const Node* a, const Node* b, const Node* c)
+            : ax(a->x), ay(a->y), bx(b->x), by(b->y), cx(c->x), cy(c->y) {
+        }
+
+        inline double area() const {
+            return (by - ay) * (cx - bx) - (bx - ax) * (cy - by);
+        }
+
+        inline bool containsPoint(double px, double py) const {
+            return (cx - px) * (ay - py) >= (ax - px) * (cy - py) &&
+                   (ax - px) * (by - py) >= (bx - px) * (ay - py) &&
+                   (bx - px) * (cy - py) >= (cx - px) * (by - py);
+        }
     };
 
     template <typename Ring> Node* linkedList(const Ring& points, const bool clockwise);
@@ -362,13 +385,15 @@ bool Earcut<N>::isEar(Node* ear) {
     const Node* b = ear;
     const Node* c = ear->next;
 
-    if (area(a, b, c) >= 0) return false; // reflex, can't be an ear
+    // Create triangle with cached coordinates and bounding box
+    const Triangle tri(a, b, c);
+    if (tri.area() >= 0) return false; // reflex, can't be an ear
 
     // now make sure we don't have other points inside the potential ear
     Node* p = ear->next->next;
 
     while (p != ear->prev) {
-        if (pointInTriangle(a->x, a->y, b->x, b->y, c->x, c->y, p->x, p->y) &&
+        if (tri.containsPoint(p->x, p->y) &&
             area(p->prev, p, p->next) >= 0) return false;
         p = p->next;
     }
@@ -382,13 +407,15 @@ bool Earcut<N>::isEarHashed(Node* ear) {
     const Node* b = ear;
     const Node* c = ear->next;
 
-    if (area(a, b, c) >= 0) return false; // reflex, can't be an ear
+    // Create triangle with cached coordinates and bounding box
+    const Triangle tri(a, b, c);
+    if (tri.area() >= 0) return false; // reflex, can't be an ear
 
     // triangle bbox; min & max are calculated like this for speed
-    const double minTX = std::min<double>(a->x, std::min<double>(b->x, c->x));
-    const double minTY = std::min<double>(a->y, std::min<double>(b->y, c->y));
-    const double maxTX = std::max<double>(a->x, std::max<double>(b->x, c->x));
-    const double maxTY = std::max<double>(a->y, std::max<double>(b->y, c->y));
+    const double minTX = std::min<double>(tri.ax, std::min<double>(tri.bx, tri.cx));
+    const double minTY = std::min<double>(tri.ay, std::min<double>(tri.by, tri.cy));
+    const double maxTX = std::max<double>(tri.ax, std::max<double>(tri.bx, tri.cx));
+    const double maxTY = std::max<double>(tri.ay, std::max<double>(tri.by, tri.cy));
 
     // z-order range for the current triangle bbox;
     const int32_t minZ = zOrder(minTX, minTY);
@@ -399,7 +426,7 @@ bool Earcut<N>::isEarHashed(Node* ear) {
 
     while (p && p->z <= maxZ) {
         if (p != ear->prev && p != ear->next &&
-            pointInTriangle(a->x, a->y, b->x, b->y, c->x, c->y, p->x, p->y) &&
+            tri.containsPoint(p->x, p->y) &&
             area(p->prev, p, p->next) >= 0) return false;
         p = p->nextZ;
     }
@@ -409,7 +436,7 @@ bool Earcut<N>::isEarHashed(Node* ear) {
 
     while (p && p->z >= minZ) {
         if (p != ear->prev && p != ear->next &&
-            pointInTriangle(a->x, a->y, b->x, b->y, c->x, c->y, p->x, p->y) &&
+            tri.containsPoint(p->x, p->y) &&
             area(p->prev, p, p->next) >= 0) return false;
         p = p->prevZ;
     }
