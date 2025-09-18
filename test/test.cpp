@@ -1,9 +1,10 @@
-#include "tap.hpp"
+#include <gtest/gtest.h>
 #include "fixtures/geometries.hpp"
 
 #include <iomanip>
 #include <locale>
 #include <sstream>
+#include <algorithm>
 
 template <typename Point>
 double triangleArea(const Point &a, const Point &b, const Point &c) {
@@ -54,64 +55,63 @@ std::string formatPercent(double num) {
     return ss.str();
 }
 
-void areaTest(mapbox::fixtures::FixtureTester* fixture) {
-    Tap::Test t(fixture->name);
+class EarcutAreaTest : public ::testing::TestWithParam<mapbox::fixtures::FixtureTester*> {
+};
+
+TEST_P(EarcutAreaTest, EarcutTriangulation) {
+    auto fixture = GetParam();
 
     const auto expectedArea = polygonArea(fixture->polygon());
     const auto expectedTriangles = fixture->expectedTriangles;
 
-    { // Earcut
-        const auto earcut = fixture->earcut();
+    const auto earcut = fixture->earcut();
+    const auto earcutTriangles = earcut.indices.size() / 3;
 
-        const auto earcutTriangles = earcut.indices.size() / 3;
-        t.ok(earcutTriangles == expectedTriangles, std::to_string(earcutTriangles) + " triangles when expected " +
-            std::to_string(expectedTriangles));
+    EXPECT_EQ(earcutTriangles, expectedTriangles)
+        << fixture->name << ": " << earcutTriangles << " triangles when expected " << expectedTriangles;
 
-        if (expectedTriangles > 0) {
-            const auto area = trianglesArea(earcut.vertices, earcut.indices);
-            const double deviation = (expectedArea == area) ? 0 :
-                    expectedArea == 0 ? std::numeric_limits<double>::infinity() :
-                    std::abs(area - expectedArea) / expectedArea;
-
-            bool deviationOk = deviation <= fixture->expectedEarcutDeviation;
-            t.ok(deviationOk, std::string{ "earcut deviation " } + formatPercent(deviation) +
-                                                    " is " + (deviationOk ? "" : "not ") + "less than " +
-                                                    formatPercent(fixture->expectedEarcutDeviation));
-        }
-    }
-
-    { // Libtess2
-        const auto libtess = fixture->libtess();
-        const auto area = trianglesArea(libtess.vertices, libtess.indices);
+    if (expectedTriangles > 0) {
+        const auto area = trianglesArea(earcut.vertices, earcut.indices);
         const double deviation = (expectedArea == area) ? 0 :
                 expectedArea == 0 ? std::numeric_limits<double>::infinity() :
                 std::abs(area - expectedArea) / expectedArea;
 
-        bool deviationOk = deviation <= fixture->expectedLibtessDeviation;
-        t.ok(deviationOk, std::string{ "libtess2 deviation " } + formatPercent(deviation) +
-                                             " is " + (deviationOk ? "" : "not ") + "less than " +
-                                             formatPercent(fixture->expectedLibtessDeviation));
+        EXPECT_LE(deviation, fixture->expectedEarcutDeviation)
+            << fixture->name << ": earcut deviation " << formatPercent(deviation)
+            << " is not less than " << formatPercent(fixture->expectedEarcutDeviation);
     }
-
-    t.end();
 }
 
-int main() {
-    Tap tap;
+TEST_P(EarcutAreaTest, LibtessTriangulation) {
+    auto fixture = GetParam();
 
-    {
-        Tap::Test t("empty");
-        auto polygon = mapbox::fixtures::Polygon<std::pair<int, int>> {};
-        EarcutTesselator<int, decltype(polygon)> tesselator(polygon);
-        tesselator.run();
-        t.ok(tesselator.indices().empty(), "empty input produces empty result");
-        t.end();
-    }
+    const auto expectedArea = polygonArea(fixture->polygon());
+    const auto libtess = fixture->libtess();
+    const auto area = trianglesArea(libtess.vertices, libtess.indices);
+    const double deviation = (expectedArea == area) ? 0 :
+            expectedArea == 0 ? std::numeric_limits<double>::infinity() :
+            std::abs(area - expectedArea) / expectedArea;
 
-    auto& fixtures = mapbox::fixtures::FixtureTester::collection();
-    for (auto fixture : fixtures) {
-        areaTest(fixture);
-    }
-
-    return 0;
+    EXPECT_LE(deviation, fixture->expectedLibtessDeviation)
+        << fixture->name << ": libtess2 deviation " << formatPercent(deviation)
+        << " is not less than " << formatPercent(fixture->expectedLibtessDeviation);
 }
+
+TEST(EarcutBasicTest, EmptyInput) {
+    auto polygon = mapbox::fixtures::Polygon<std::pair<int, int>> {};
+    EarcutTesselator<int, decltype(polygon)> tesselator(polygon);
+    tesselator.run();
+    EXPECT_TRUE(tesselator.indices().empty()) << "empty input should produce empty result";
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    FixtureTests,
+    EarcutAreaTest,
+    ::testing::ValuesIn(mapbox::fixtures::FixtureTester::collection()),
+    [](const ::testing::TestParamInfo<mapbox::fixtures::FixtureTester*>& info) {
+        std::string name = info.param->name;
+        std::replace(name.begin(), name.end(), '-', '_');
+        std::replace(name.begin(), name.end(), '.', '_');
+        return name;
+    }
+);
