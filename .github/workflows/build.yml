@@ -203,6 +203,48 @@ jobs:
           ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
           UBSAN_OPTIONS: halt_on_error=1:abort_on_error=1
 
+  Format:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+          clang-format --version
+
+      - name: Check code formatting
+        run: |
+          # Find all C++ files and check formatting
+          find include test -name "*.hpp" -o -name "*.cpp" | xargs clang-format --dry-run --Werror
+
+      - name: Generate formatting patch
+        if: failure()
+        run: |
+          # Create patch with correct formatting
+          find include test -name "*.hpp" -o -name "*.cpp" | xargs clang-format -i
+          git diff > formatting.patch
+
+          # Show the patch content
+          echo "=== Formatting issues found ==="
+          cat formatting.patch
+
+          # Reset changes
+          git checkout .
+
+      - name: Upload formatting patch
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: formatting-patch
+          path: formatting.patch
+
   MacOS:
     strategy:
       fail-fast: false
