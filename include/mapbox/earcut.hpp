@@ -532,7 +532,7 @@ typename Earcut<N>::Node* Earcut<N>::findHoleBridge(Node* hole, Node* outerNode)
     Node* p = outerNode;
     double hx = hole->x;
     double hy = hole->y;
-    double qx = -std::numeric_limits<double>::infinity();
+    double qx = -std::numeric_limits<double>::max();
     Node* m = nullptr;
 
     // find a segment intersected by a ray from the hole's leftmost Vertex to the left;
@@ -556,7 +556,7 @@ typename Earcut<N>::Node* Earcut<N>::findHoleBridge(Node* hole, Node* outerNode)
     // otherwise choose the Vertex of the minimum angle with the ray as connection Vertex
 
     const Node* stop = m;
-    double tanMin = std::numeric_limits<double>::infinity();
+    double tanMin = std::numeric_limits<double>::max();
     double tanCur = 0;
 
     p = m;
