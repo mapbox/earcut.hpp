@@ -32,7 +32,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # fetched here and pinned by tag (kept in lockstep with the port — bump on version updates).
 FetchContent_Declare(earcut_js
     GIT_REPOSITORY https://github.com/mapbox/earcut.git
-    GIT_TAG v2.2.4
+    GIT_TAG v3.0.1
     GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(earcut_js)
 

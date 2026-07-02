@@ -76,6 +76,11 @@ private:
             return (cx - px) * (ay - py) >= (ax - px) * (cy - py) && (ax - px) * (by - py) >= (bx - px) * (ay - py) &&
                    (bx - px) * (cy - py) >= (cx - px) * (by - py);
         }
+
+        // as containsPoint, but false when the point coincides with the triangle's first vertex (a)
+        inline bool containsPointExceptFirst(double px, double py) const {
+            return !(ax == px && ay == py) && containsPoint(px, py);
+        }
     };
 
     template <typename Ring>
@@ -384,7 +389,7 @@ bool Earcut<N>::isEar(Node* ear) {
     Node* p = ear->next->next;
 
     while (p != ear->prev) {
-        if (tri.containsPoint(p->x, p->y) && area(p->prev, p, p->next) >= 0) return false;
+        if (tri.containsPointExceptFirst(p->x, p->y) && area(p->prev, p, p->next) >= 0) return false;
         p = p->next;
     }
 
@@ -415,7 +420,8 @@ bool Earcut<N>::isEarHashed(Node* ear) {
     Node* p = ear->nextZ;
 
     while (p && p->z <= maxZ) {
-        if (p != ear->prev && p != ear->next && tri.containsPoint(p->x, p->y) && area(p->prev, p, p->next) >= 0)
+        if (p != ear->prev && p != ear->next && tri.containsPointExceptFirst(p->x, p->y) &&
+            area(p->prev, p, p->next) >= 0)
             return false;
         p = p->nextZ;
     }
@@ -424,7 +430,8 @@ bool Earcut<N>::isEarHashed(Node* ear) {
     p = ear->prevZ;
 
     while (p && p->z >= minZ) {
-        if (p != ear->prev && p != ear->next && tri.containsPoint(p->x, p->y) && area(p->prev, p, p->next) >= 0)
+        if (p != ear->prev && p != ear->next && tri.containsPointExceptFirst(p->x, p->y) &&
+            area(p->prev, p, p->next) >= 0)
             return false;
         p = p->prevZ;
     }
@@ -499,7 +506,15 @@ typename Earcut<N>::Node* Earcut<N>::eliminateHoles(const Polygon& points, Node*
             holeQueue.push_back(getLeftmost(list));
         }
     }
-    std::sort(holeQueue.begin(), holeQueue.end(), [](const Node* a, const Node* b) { return a->x < b->x; });
+    // compareXYSlope: sort by x, then y, then slope. When two holes' leftmost points coincide, the
+    // slope tiebreak makes the bridge land on the shared vertex instead of bridging the wrong hole.
+    std::sort(holeQueue.begin(), holeQueue.end(), [](const Node* a, const Node* b) {
+        if (a->x != b->x) return a->x < b->x;
+        if (a->y != b->y) return a->y < b->y;
+        const double aSlope = (a->next->y - a->y) / (a->next->x - a->x);
+        const double bSlope = (b->next->y - b->y) / (b->next->x - b->x);
+        return aSlope < bSlope;
+    });
 
     // process holes from left to right
     for (size_t i = 0; i < holeQueue.size(); i++) {
@@ -536,9 +551,13 @@ typename Earcut<N>::Node* Earcut<N>::findHoleBridge(Node* hole, Node* outerNode)
     Node* m = nullptr;
 
     // find a segment intersected by a ray from the hole's leftmost Vertex to the left;
-    // segment's endpoint with lesser x will be potential connection Vertex
+    // segment's endpoint with lesser x will be potential connection Vertex,
+    // unless they intersect at a vertex, then choose the vertex
+    if (equals(hole, p)) return p;
     do {
-        if (hy <= p->y && hy >= p->next->y && p->next->y != p->y) {
+        if (equals(hole, p->next))
+            return p->next;
+        else if (hy <= p->y && hy >= p->next->y && p->next->y != p->y) {
             double x = p->x + (hy - p->y) * (p->next->x - p->x) / (p->next->y - p->y);
             if (x <= hx && x > qx) {
                 qx = x;
@@ -569,7 +588,8 @@ typename Earcut<N>::Node* Earcut<N>::findHoleBridge(Node* hole, Node* outerNode)
             tanCur = std::abs(hy - p->y) / (hx - p->x); // tangential
 
             if (locallyInside(p, hole) &&
-                (tanCur < tanMin || (tanCur == tanMin && (p->x > m->x || sectorContainsSector(m, p))))) {
+                (tanCur < tanMin ||
+                 (tanCur == tanMin && (p->x > m->x || (p->x == m->x && sectorContainsSector(m, p)))))) {
                 m = p;
                 tanMin = tanCur;
             }
