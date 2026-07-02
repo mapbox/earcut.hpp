@@ -56,6 +56,10 @@ jobs:
         with:
           path: build/_deps
           key: deps-${{ matrix.os }}-${{ matrix.cpp_compiler }}-${{ hashFiles('CMakeLists.txt') }}
+          # Fall back to the last cache for this job when CMakeLists.txt changes (e.g. a dep tag bump):
+          # FetchContent re-checks-out only the dep whose tag moved and reuses the rest.
+          restore-keys: |
+            deps-${{ matrix.os }}-${{ matrix.cpp_compiler }}-
 
       - name: Configure CMake
         run: cmake -B build -GNinja
@@ -89,6 +93,8 @@ jobs:
         with:
           path: build/_deps
           key: deps-macos-15-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            deps-macos-15-
 
       - name: Configure CMake
         run: cmake -B build -GNinja
@@ -134,6 +140,8 @@ jobs:
         with:
           path: build/_deps
           key: deps-sanitizers-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            deps-sanitizers-
 
       - name: Configure CMake with sanitizers
         run: >
@@ -185,6 +193,8 @@ jobs:
         with:
           path: build/_deps
           key: deps-coverage-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            deps-coverage-
 
       - name: Configure CMake for coverage
         run: cmake -B build -GNinja -DEARCUT_BUILD_BENCH=OFF -DCMAKE_CXX_FLAGS="--coverage" -DCMAKE_BUILD_TYPE=Debug
@@ -267,6 +277,8 @@ jobs:
         with:
           path: build/_deps
           key: deps-viz-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            deps-viz-
 
       - name: Configure CMake
         run: cmake -B build -GNinja -DEARCUT_BUILD_TESTS=OFF -DEARCUT_BUILD_BENCH=OFF -DEARCUT_BUILD_VIZ=ON
