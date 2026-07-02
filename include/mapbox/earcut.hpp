@@ -214,6 +214,8 @@ private:
 
     std::unique_ptr<ObjectPool<Node>> nodes;
     std::vector<Node*> holeQueue;
+    // reused scratch buffer for sortLinked: materialize the z-linked ring, std::sort, relink
+    std::vector<Node*> sortBuffer;
 };
 
 template <typename N>
@@ -654,73 +656,28 @@ void Earcut<N>::indexCurve(Node* start) {
     sortLinked(p);
 }
 
-// Simon Tatham's linked list merge sort algorithm
-// http://www.chiark.greenend.org.uk/~sgtatham/algorithms/listsort.html
+// Sort the z-linked ring by z-order. Upstream earcut replaced its linked merge sort with an
+// array sort (materialize node refs → sort → relink); in C++ std::sort over a contiguous
+// Node* buffer inlines the comparator fully and beats both a linked merge sort and a hand radix
+// (measured on the MVT tiles fixture) — JS's rejection of native Array.sort does not transfer.
 template <typename N>
 typename Earcut<N>::Node* Earcut<N>::sortLinked(Node* list) {
     assert(list);
-    Node* p;
-    Node* q;
-    Node* e;
-    Node* tail;
-    int i, numMerges, pSize, qSize;
-    int inSize = 1;
+    // list is a null-terminated nextZ chain (see indexCurve); walk it into the scratch buffer
+    sortBuffer.clear();
+    for (Node* p = list; p; p = p->nextZ) sortBuffer.push_back(p);
 
-    for (;;) {
-        p = list;
-        list = nullptr;
-        tail = nullptr;
-        numMerges = 0;
+    std::sort(sortBuffer.begin(), sortBuffer.end(), [](const Node* a, const Node* b) { return a->z < b->z; });
 
-        while (p) {
-            numMerges++;
-            q = p;
-            pSize = 0;
-            for (i = 0; i < inSize; i++) {
-                pSize++;
-                q = q->nextZ;
-                if (!q) break;
-            }
-
-            qSize = inSize;
-
-            while (pSize > 0 || (qSize > 0 && q)) {
-                if (pSize == 0) {
-                    e = q;
-                    q = q->nextZ;
-                    qSize--;
-                } else if (qSize == 0 || !q) {
-                    e = p;
-                    p = p->nextZ;
-                    pSize--;
-                } else if (p->z <= q->z) {
-                    e = p;
-                    p = p->nextZ;
-                    pSize--;
-                } else {
-                    e = q;
-                    q = q->nextZ;
-                    qSize--;
-                }
-
-                if (tail)
-                    tail->nextZ = e;
-                else
-                    list = e;
-
-                e->prevZ = tail;
-                tail = e;
-            }
-
-            p = q;
-        }
-
-        tail->nextZ = nullptr;
-
-        if (numMerges <= 1) return list;
-
-        inSize *= 2;
+    // relink in sorted order
+    Node* prev = nullptr;
+    for (Node* p : sortBuffer) {
+        p->prevZ = prev;
+        if (prev) prev->nextZ = p;
+        prev = p;
     }
+    prev->nextZ = nullptr;
+    return sortBuffer.front();
 }
 
 // z-order of a Vertex given coords and size of the data bounding box

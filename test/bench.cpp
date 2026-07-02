@@ -14,15 +14,8 @@
 // MVT set never hits. Tiny/degenerate fixtures are left out — they're noise as a perf signal.
 std::vector<mapbox::fixtures::FixtureTester*> getBenchmarkFixtures() {
     auto& fixtures = mapbox::fixtures::FixtureTester::collection();
-    std::set<std::string> bench_whitelist = {"building",
-                                             "dude",
-                                             "water_huge",
-                                             "water_huge2",
-                                             "water",
-                                             "water2",
-                                             "water3",
-                                             "water3b",
-                                             "water4"};
+    std::set<std::string> bench_whitelist = {
+        "building", "dude", "water_huge", "water_huge2", "water", "water2", "water3", "water3b", "water4"};
 
     std::vector<mapbox::fixtures::FixtureTester*> result;
     for (auto fixture : fixtures) {
