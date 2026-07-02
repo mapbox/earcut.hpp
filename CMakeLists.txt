@@ -1,10 +1,12 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.16)
 project(earcut_hpp LANGUAGES CXX C)
 
 option(EARCUT_BUILD_TESTS "Build the earcut test program" ON)
 option(EARCUT_BUILD_BENCH "Build the earcut benchmark program" ON)
-option(EARCUT_BUILD_VIZ "Build the earcut visualizer program" ON)
+option(EARCUT_BUILD_VIZ "Build the earcut visualizer program" OFF)
 option(EARCUT_WARNING_IS_ERROR "Treat warnings as errors" OFF)
+
+include(FetchContent)
 
 if (NOT CMAKE_BUILD_TYPE AND NOT GENERATOR_IS_MULTI_CONFIG)
     message(STATUS "No build type specified. Setting to 'Release'")
@@ -22,7 +24,9 @@ target_include_directories(earcut_hpp INTERFACE
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-set(CMAKE_CXX_STANDARD 14)
+# The shipping header stays C++14-compatible; the test/bench/viz tree uses C++17.
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 file(GLOB FIXTURE_SOURCE_FILES test/fixtures/*.cpp test/fixtures/*.hpp)
 source_group(fixtures FILES ${FIXTURE_SOURCE_FILES})
@@ -31,11 +35,7 @@ target_compile_options(fixtures PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:/Od>
     $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-ffp-contract=off>
 )
-
-# In CMake 3.12, use target_link_libraries(fixtures PUBLIC earcut_hpp libtess2).
-# Since we support down to CMake 3.2, we need to manually propagate usage requirements of earcut_hpp
-target_include_directories(fixtures PRIVATE "$<TARGET_PROPERTY:earcut_hpp,INTERFACE_INCLUDE_DIRECTORIES>")
-target_compile_features(fixtures PRIVATE "$<TARGET_PROPERTY:earcut_hpp,INTERFACE_COMPILE_FEATURES>")
+target_link_libraries(fixtures PUBLIC earcut_hpp)
 
 
 file(GLOB COMPARISON_SOURCE_FILES test/comparison/*.cpp test/comparison/*.hpp)
@@ -70,8 +70,7 @@ if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang$" OR CMAKE_COMPILER_IS_GNUCXX)
         check_cxx_compiler_flag("-fsanitize=undefined" HAVE_FLAG_SANITIZE_UNDEFINED)
         if(HAVE_FLAG_SANITIZE_UNDEFINED)
             target_compile_options(common INTERFACE $<$<CONFIG:Debug>:-fsanitize=undefined>)
-            # TODO: Replace with target link option once we support CMake 3.13 
-            target_link_libraries(common INTERFACE $<$<CONFIG:Debug>:-fsanitize=undefined>)
+            target_link_options(common INTERFACE $<$<CONFIG:Debug>:-fsanitize=undefined>)
         endif()
     endif()
 endif()
@@ -90,7 +89,11 @@ if (EARCUT_BUILD_TESTS)
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
     set(BUILD_GTEST ON CACHE BOOL "" FORCE)
-    add_subdirectory(vendor/googletest)
+    FetchContent_Declare(googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG v1.15.2
+        GIT_SHALLOW TRUE)
+    FetchContent_MakeAvailable(googletest)
 
     add_executable(tests test/test.cpp $<TARGET_OBJECTS:fixtures>)
     target_link_libraries(tests PRIVATE earcut_hpp common gtest gtest_main)
@@ -106,7 +109,11 @@ if (EARCUT_BUILD_BENCH)
     # Google Benchmark setup
     set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
     set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "" FORCE)
-    add_subdirectory(vendor/benchmark)
+    FetchContent_Declare(benchmark
+        GIT_REPOSITORY https://github.com/google/benchmark.git
+        GIT_TAG v1.9.0
+        GIT_SHALLOW TRUE)
+    FetchContent_MakeAvailable(benchmark)
 
     add_executable(bench test/bench.cpp $<TARGET_OBJECTS:fixtures>)
     target_link_libraries(bench PRIVATE earcut_hpp common benchmark::benchmark)
@@ -123,28 +130,20 @@ if (EARCUT_BUILD_VIZ)
     # GLFW3
     find_package(glfw3 QUIET) # try to use the system default
     if (NOT glfw3_FOUND)
-        if(EXISTS "${PROJECT_SOURCE_DIR}/.gitmodules")
-            find_package(Git REQUIRED)
-            execute_process(
-                    COMMAND             ${GIT_EXECUTABLE} submodule update --init --recursive
-                    WORKING_DIRECTORY   ${PROJECT_SOURCE_DIR}
-                    OUTPUT_QUIET
-                    ERROR_QUIET
-            )
-        endif()
-
         set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "Build the GLFW example programs" FORCE)
         set(GLFW_BUILD_TESTS OFF CACHE BOOL "Build the GLFW test programs" FORCE)
         set(GLFW_BUILD_DOCS OFF CACHE BOOL "Build the GLFW documentation" FORCE)
         set(GLFW_INSTALL OFF CACHE BOOL "Generate installation target" FORCE)
-        add_subdirectory(vendor/glfw)
+        FetchContent_Declare(glfw
+            GIT_REPOSITORY https://github.com/glfw/glfw.git
+            GIT_TAG 3.4
+            GIT_SHALLOW TRUE)
+        FetchContent_MakeAvailable(glfw)
     endif()
 
     target_compile_definitions(viz PRIVATE GL_SILENCE_DEPRECATION)
 
-    # TODO: Using old variables for OpenGL package since they were added in CMake 3.8
-    target_link_libraries(viz PRIVATE earcut_hpp common glfw ${OPENGL_LIBRARIES})
-    target_include_directories(viz PRIVATE ${OPENGL_INCLUDE_DIR})
+    target_link_libraries(viz PRIVATE earcut_hpp common glfw OpenGL::GL)
 endif()
 
 install(

@@ -2,13 +2,8 @@
 
 A C++ port of [earcut.js](https://github.com/mapbox/earcut), a fast, [header-only](https://github.com/mapbox/earcut.hpp/blob/master/include/mapbox/earcut.hpp) polygon triangulation library.
 
-[![Travis](https://img.shields.io/travis/com/mapbox/earcut.hpp.svg)](https://travis-ci.com/github/mapbox/earcut.hpp)
-[![AppVeyor](https://ci.appveyor.com/api/projects/status/a1ysrqd69mqn7coo/branch/master?svg=true)](https://ci.appveyor.com/project/Mapbox/earcut-hpp-8wm4o/branch/master)
-[![Coverage](https://img.shields.io/coveralls/github/mapbox/earcut.hpp.svg)](https://coveralls.io/github/mapbox/earcut.hpp)
-[![Coverity Scan](https://img.shields.io/coverity/scan/14000.svg)](https://scan.coverity.com/projects/14000)
-[![Average time to resolve an issue](http://isitmaintained.com/badge/resolution/mapbox/earcut.hpp.svg)](http://isitmaintained.com/project/mapbox/earcut.hpp "Average time to resolve an issue")
-[![Percentage of issues still open](http://isitmaintained.com/badge/open/mapbox/earcut.hpp.svg)](http://isitmaintained.com/project/mapbox/earcut.hpp "Percentage of issues still open")
-[![Mourner](https://img.shields.io/badge/simply-awesome-brightgreen.svg)](https://github.com/mourner/projects)
+[![Build](https://github.com/mapbox/earcut.hpp/actions/workflows/build.yml/badge.svg)](https://github.com/mapbox/earcut.hpp/actions/workflows/build.yml)
+[![Volodymyr Agafonkin's projects](https://img.shields.io/badge/simply-awesome-brightgreen.svg)](https://github.com/mourner/projects)
 
 The library implements a modified ear slicing algorithm, optimized by [z-order curve](http://en.wikipedia.org/wiki/Z-order_curve) hashing and extended to handle holes, twisted polygons, degeneracies and self-intersections in a way that doesn't _guarantee_ correctness of triangulation, but attempts to always produce acceptable results for practical data like geographical shapes.
 
@@ -87,44 +82,34 @@ If you want to build the test, benchmark and visualization programs instead, fol
 
 ### Dependencies
 
-Before you continue, make sure to have the following tools and libraries installed:
+Before you continue, make sure to have the following tools installed:
  * git ([Ubuntu](https://help.ubuntu.com/lts/serverguide/git.html)/[Windows/macOS](http://git-scm.com/downloads))
- * cmake 3.2+ ([Ubuntu](https://launchpad.net/~george-edison55/+archive/ubuntu/cmake-3.x)/[Windows/macOS](https://cmake.org/download/))
- * OpenGL SDK ([Ubuntu](http://packages.ubuntu.com/de/trusty/libgl1-mesa-dev)/[Windows](https://dev.windows.com/en-us/downloads/windows-10-sdk)/[macOS](https://developer.apple.com/opengl/))
- * Compiler such as [GCC 4.9+, Clang 3.4+](https://launchpad.net/~ubuntu-toolchain-r/+archive/ubuntu/test), [MSVC12+](https://www.visualstudio.com/)
+ * cmake 3.16+ ([Windows/macOS/Linux](https://cmake.org/download/))
+ * A C++17 compiler (GCC 9+, Clang 10+, or MSVC 2019+)
 
-Note: On some operating systems such as Windows, manual steps are required to add cmake and [git](http://blog.countableset.ch/2012/06/07/adding-git-to-windows-7-path/) to your PATH environment variable.
+The test/benchmark dependencies (GoogleTest, Google Benchmark, and — for the visualizer — GLFW),
+as well as the test fixtures, are fetched automatically at configure time via CMake's `FetchContent`,
+so a plain (non-recursive) clone is all you need. The first configure needs network access to clone
+them; set `FETCHCONTENT_FULLY_DISCONNECTED=ON` (or point `FETCHCONTENT_SOURCE_DIR_<name>` at a local
+checkout) to build offline. The visualizer additionally needs an OpenGL SDK and is off by default.
 
-### Manual compilation
+### Compilation
 
 ```bash
-git clone --recursive https://github.com/mapbox/earcut.hpp.git
+git clone https://github.com/mapbox/earcut.hpp.git
 cd earcut.hpp
-mkdir build
-cd build
-cmake ..
-make
-# ./tests
-# ./bench
-# ./viz
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+# ./build/tests
+# ./build/bench
 ```
 
-### [Visual Studio](https://www.visualstudio.com/), [Eclipse](https://eclipse.org/), [XCode](https://developer.apple.com/xcode/), ...
+Build options (all default to their common value): `-DEARCUT_BUILD_TESTS=ON`,
+`-DEARCUT_BUILD_BENCH=ON`, `-DEARCUT_BUILD_VIZ=OFF` (needs OpenGL + GLFW),
+`-DEARCUT_WARNING_IS_ERROR=OFF`.
 
-```batch
-git clone --recursive https://github.com/mapbox/earcut.hpp.git
-cd earcut.hpp
-mkdir project
-cd project
-cmake .. -G "Visual Studio 14 2015"
-::you can also generate projects for "Visual Studio 12 2013", "XCode", "Eclipse CDT4 - Unix Makefiles"
-```
-After completion, open the generated project with your IDE.
-
-
-### [CLion](https://www.jetbrains.com/clion/), [Visual Studio 2017+](https://www.visualstudio.com/)
-
-Import the project from https://github.com/mapbox/earcut.hpp.git and you should be good to go!
+CMake can also generate IDE projects (Visual Studio, Xcode, etc.) — e.g.
+`cmake -B build -G "Visual Studio 17 2022"` — or import the folder directly in CLion / VS.
 
 ## Status
 
