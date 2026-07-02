@@ -6,7 +6,7 @@ namespace mapbox {
 namespace fixtures {
 
 static const Fixture<short> touching4("touching4",
-                                      20,
+                                      19,
                                       1e-14,
                                       0.06,
                                       {

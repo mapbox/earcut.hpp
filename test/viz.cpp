@@ -114,16 +114,19 @@ public:
 };
 
 class DrawableTesselator : public DrawablePolygon {
-    mapbox::fixtures::FixtureTester::TesselatorResult shape;
     mapbox::fixtures::DoublePolygon const& polygon;
+
+protected:
+    std::vector<std::array<double, 2>> vertices;
+    std::vector<uint32_t> indices;
 
 public:
     explicit DrawableTesselator(mapbox::fixtures::FixtureTester::TesselatorResult tessellation,
                                 mapbox::fixtures::DoublePolygon const& poly)
-        : shape(tessellation), polygon(poly) {}
+        : polygon(poly), vertices(tessellation.vertices), indices(tessellation.indices) {}
     void drawMesh() override {
-        const auto& v = shape.vertices;
-        const auto& x = shape.indices;
+        const auto& v = vertices;
+        const auto& x = indices;
         glBegin(GL_LINES);
         glColor4fv(colorMesh);
         for (size_t i = 0; i < x.size(); i += 3) {
@@ -151,8 +154,8 @@ public:
         glEnd();
     }
     void drawFill() override {
-        const auto& v = shape.vertices;
-        const auto& x = shape.indices;
+        const auto& v = vertices;
+        const auto& x = indices;
         glBegin(GL_TRIANGLES);
         glColor4fv(colorFill);
         for (const auto pt : x) {
@@ -167,6 +170,15 @@ public:
     explicit DrawableEarcut(mapbox::fixtures::FixtureTester* fixture)
         : DrawableTesselator(fixture->earcut(), fixture->polygon()) {}
     const char* name() override { return "earcut"; };
+};
+
+class DrawableEarcutRefine : public DrawableTesselator {
+public:
+    explicit DrawableEarcutRefine(mapbox::fixtures::FixtureTester* fixture)
+        : DrawableTesselator(fixture->earcut(), fixture->polygon()) {
+        mapbox::refine(indices, fixture->polygon());
+    }
+    const char* name() override { return "earcut-refine"; };
 };
 
 class DrawableLibtess : public DrawableTesselator {
@@ -320,13 +332,15 @@ std::unique_ptr<DrawablePolygon> DrawablePolygon::makeDrawable(std::size_t index
     if (index == 0) {
         return std::unique_ptr<DrawablePolygon>(new DrawableEarcut(fixture));
     } else if (index == 1) {
+        return std::unique_ptr<DrawablePolygon>(new DrawableEarcutRefine(fixture));
+    } else if (index == 2) {
         return std::unique_ptr<DrawablePolygon>(new DrawableLibtess(fixture));
     } else {
         return std::unique_ptr<DrawablePolygon>(new DrawableScanLineFill(fixture));
     }
 }
 
-static std::array<std::unique_ptr<DrawablePolygon>, 3> tessellators;
+static std::array<std::unique_ptr<DrawablePolygon>, 4> tessellators;
 
 mapbox::fixtures::FixtureTester* getFixture(std::size_t i) {
     auto& fixtures = mapbox::fixtures::FixtureTester::collection();

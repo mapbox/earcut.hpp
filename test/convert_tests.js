@@ -1,9 +1,7 @@
-'use strict';
-/* jshint node: true */
-
-var fs = require('fs');
-var path = require('path');
-var earcut = require('../../earcut/src/earcut.js');
+import fs from 'fs';
+import path from 'path';
+import {execFileSync} from 'child_process';
+import earcut, {flatten, deviation} from '../../earcut/src/earcut.js';
 
 var integerPolygons = '';
 var doublePolygons = '';
@@ -13,9 +11,9 @@ fs.readdirSync(base).filter(function (name) {
     return path.extname(name) === '.json';
 }).forEach(function (name) {
     var json = JSON.parse(fs.readFileSync(path.join(base, name), 'utf-8'));
-    var data = earcut.flatten(json),
+    var data = flatten(json),
         indices = earcut(data.vertices, data.holes, data.dimensions),
-        deviation = earcut.deviation(data.vertices, data.holes, data.dimensions, indices);
+        err = deviation(data.vertices, data.holes, data.dimensions, indices);
 
     var id = path.basename(name, path.extname(name)).replace(/[^a-z0-9]+/g, '_');
 
@@ -46,7 +44,7 @@ fs.readdirSync(base).filter(function (name) {
     }
 
     var expectedTriangles = indices.length / 3;
-    var expectedDeviation = deviation;
+    var expectedDeviation = err;
     expectedDeviation += 1e-14;
     var libtessDeviationMap = {
         "water": 0.00002,
@@ -60,7 +58,11 @@ fs.readdirSync(base).filter(function (name) {
         "empty_square": Infinity,
         "issue83": Infinity,
         "issue107": Infinity,
+        "earcut": 0.17,
+        "infinite_loop_jhl": Infinity,
         "issue119": 0.04,
+        "issue142": 8.54,
+        "issue147": 0.051,
         "touching4": 0.06
     };
     var expectedLibtessDeviation = libtessDeviationMap[id];
@@ -75,5 +77,7 @@ fs.readdirSync(base).filter(function (name) {
     cpp += '}\n';
     cpp += '}\n';
 
-    fs.writeFileSync('test/fixtures/' + id + '.cpp', cpp);
+    var fixturePath = 'test/fixtures/' + id + '.cpp';
+    fs.writeFileSync(fixturePath, cpp);
+    execFileSync('clang-format', ['-i', fixturePath]);
 });

@@ -7,7 +7,7 @@ namespace fixtures {
 
 static const Fixture<short> boxy(
     "boxy",
-    57,
+    58,
     1e-14,
     0.000001,
     {

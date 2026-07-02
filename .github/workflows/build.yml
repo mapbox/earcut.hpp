@@ -55,7 +55,7 @@ jobs:
 
       - name: Configure CMake
         working-directory: build
-        run: cmake .. -GNinja
+        run: cmake .. -GNinja -DEARCUT_WARNING_IS_ERROR=ON
 
       - name: Build all targets
         working-directory: build
@@ -104,7 +104,7 @@ jobs:
 
       - name: Configure CMake for coverage
         working-directory: build
-        run: cmake .. -GNinja -DCMAKE_CXX_FLAGS="--coverage" -DCMAKE_BUILD_TYPE=Debug
+        run: cmake .. -GNinja -DEARCUT_WARNING_IS_ERROR=ON -DCMAKE_CXX_FLAGS="--coverage" -DCMAKE_BUILD_TYPE=Debug
 
       - name: Build all targets
         working-directory: build
@@ -191,7 +191,7 @@ jobs:
 
       - name: Configure CMake with sanitizers
         working-directory: build
-        run: cmake .. -GNinja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g"
+        run: cmake .. -GNinja -DEARCUT_WARNING_IS_ERROR=ON -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g"
 
       - name: Build all targets
         working-directory: build
@@ -250,7 +250,6 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - "macos-13"
           - "macos-14"
 
     runs-on: ${{ matrix.os }}
@@ -277,7 +276,7 @@ jobs:
 
       - name: Configure CMake
         working-directory: build
-        run: cmake .. -GNinja
+        run: cmake .. -GNinja -DEARCUT_WARNING_IS_ERROR=ON
 
       - name: Build all targets
         working-directory: build

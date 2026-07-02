@@ -2,6 +2,7 @@
 
 ### master
 
+ - Update from Earcut v2.2.4 to Earcut v3.2.3: regenerated the fixture corpus from earcut.js v3.2.3
  - Fixed a bunch of rare edge cases that led to bad triangulation (parity with Earcut v2.2.2)
  - Removed use of deprecated `std::allocator::construct`
  - Fixed a minor z-order hashing bug

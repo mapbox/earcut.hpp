@@ -7,7 +7,7 @@ namespace fixtures {
 
 static const Fixture<double> issue16("issue16",
                                      12,
-                                     1e-14,
+                                     1.0176593917786209e-14,
                                      0.0255,
                                      {
                                          {{143.12952728374512, 61.24016082659364},

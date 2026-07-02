@@ -6,7 +6,7 @@ namespace mapbox {
 namespace fixtures {
 
 static const Fixture<short> issue111("issue111",
-                                     19,
+                                     18,
                                      1e-14,
                                      0.000001,
                                      {

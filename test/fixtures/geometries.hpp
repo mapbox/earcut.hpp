@@ -25,7 +25,7 @@ const double Infinity = std::numeric_limits<double>::infinity();
 template <class T>
 class Collector {
     std::vector<T> objects;
-    Collector<T>() = default;
+    Collector() = default;
 
 public:
     static std::vector<T>& collection() {
@@ -76,11 +76,11 @@ private:
     Libtess2Tesselator<double, Polygon<std::pair<T, T>>> libtessTesselator;
 
 public:
-    Fixture<T>(std::string const& name,
-               std::size_t expectedTriangles,
-               double expectedDeviation,
-               double expectedLibtessDeviation,
-               Polygon<std::pair<T, T>> const& p)
+    Fixture(std::string const& name,
+            std::size_t expectedTriangles,
+            double expectedDeviation,
+            double expectedLibtessDeviation,
+            Polygon<std::pair<T, T>> const& p)
         : FixtureTester(name, expectedTriangles, expectedDeviation, expectedLibtessDeviation),
           inputPolygon(p),
           earcutTesselator(inputPolygon),

@@ -7,7 +7,7 @@ namespace fixtures {
 
 static const Fixture<short> issue34(
     "issue34",
-    139,
+    138,
     1e-14,
     0.000001,
     {

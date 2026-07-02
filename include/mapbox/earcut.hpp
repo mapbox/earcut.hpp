@@ -1,12 +1,14 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -33,8 +35,11 @@ public:
     void operator()(const Polygon& points);
 
 private:
+    // A vertex in a circular doubly linked list representing a polygon ring.
+    // prev/next are always linked after construction; prevZ/nextZ are the
+    // z-order list links and are null at the ends.
     struct Node {
-        Node(N index, double x_, double y_) : x(x_), y(y_), i(index), steiner(0) {}
+        Node(N index, double x_, double y_) : x(x_), y(y_), i(index & ~(N(1) << (sizeof(N) * 8 - 1))), steiner(0) {}
         Node(const Node&) = delete;
         Node& operator=(const Node&) = delete;
         Node(Node&&) = delete;
@@ -43,17 +48,17 @@ private:
         const double x;
         const double y;
 
-        // previous and next vertice nodes in a polygon ring
+        // previous and next vertex nodes in a polygon ring
         Node* prev = nullptr;
         Node* next = nullptr;
 
-        // z-order curve value
+        // z-order curve value; doubles as the owning block index during eliminateHoles
         int32_t z = 0;
 
         // original index in polygon
         const N i : (sizeof(N) * 8 - 1);
 
-        // indicates whether this is a steiner point
+        // indicates whether this is a steiner point; single-vertex holes are preserved through filterPoints
         N steiner : 1;
 
         // previous and next nodes in z-order
@@ -91,6 +96,11 @@ private:
     Node* eliminateHole(Node* hole, Node* outerNode);
     Node* findHoleBridge(Node* hole, Node* outerNode);
     bool sectorContainsSector(const Node* m, const Node* p);
+    void buildBlockIndex(std::size_t maxNodes, std::size_t numHoles);
+    void indexSegment(Node* head, Node* stop);
+    void growBlock(Node* head, Node* tail);
+    Node* liveBlockStop(std::size_t block);
+    Node* liveBlockHead(std::size_t block);
     void indexCurve(Node* start);
     Node* sortLinked(Node* list);
     int32_t zOrder(const double x_, const double y_);
@@ -99,7 +109,7 @@ private:
     bool isValidDiagonal(Node* a, Node* b);
     double area(const Node* p, const Node* q, const Node* r) const;
     bool equals(const Node* p1, const Node* p2);
-    bool intersects(const Node* p1, const Node* q1, const Node* p2, const Node* q2);
+    bool intersects(const Node* p1, const Node* q1, const Node* p2, const Node* q2, bool includeBoundary = true);
     bool onSegment(const Node* p, const Node* q, const Node* r);
     int sign(double val);
     bool intersectsPolygon(const Node* a, const Node* b);
@@ -193,6 +203,14 @@ private:
 
     std::unique_ptr<ObjectPool<Node>> nodes;
     std::vector<Node*> holeQueue;
+    std::vector<std::array<double, 4>> blockBBox;
+    std::vector<Node*> blockHead;
+    std::vector<Node*> blockStop;
+    std::size_t numBlocks = 0;
+    // true only while eliminateHoles merges holes, so removeNode keeps the block index live (growBlock)
+    bool indexActive = false;
+    // set by filterPoints whenever it removes at least one node; read by earcutLinked's stall handler
+    bool filteredOut = false;
 };
 
 template <typename N>
@@ -291,25 +309,31 @@ typename Earcut<N>::Node* Earcut<N>::linkedList(const Ring& points, const bool c
     return last;
 }
 
-// eliminate colinear or duplicate points
+// Remove collinear or coincident points; removability depends only on a node's immediate
+// neighbors, so we sweep forward and re-check the predecessor after each removal. With no end
+// we sweep the whole ring, lapping until nothing is removable (the fixpoint the clipper needs).
+// With an explicit end we heal only the dirty window around a bridge/diagonal cut, stopping at
+// end rather than lapping -- O(window) instead of O(ring).
 template <typename N>
 typename Earcut<N>::Node* Earcut<N>::filterPoints(Node* start, Node* end) {
     if (!end) end = start;
+
+    bool full = end == start;
 
     Node* p = start;
     bool again;
     do {
         again = false;
 
-        if (!p->steiner && (equals(p, p->next) || area(p->prev, p, p->next) == 0)) {
+        if (p != p->next && !p->steiner && (equals(p, p->next) || area(p->prev, p, p->next) == 0)) {
+            if (full || p == end) end = p->prev;
+            filteredOut = true;
             removeNode(p);
-            p = end = p->prev;
-
-            if (p == p->next) break;
+            p = p->prev;
             again = true;
-
-        } else {
+        } else if (full || p != end) {
             p = p->next;
+            again = !full;
         }
     } while (again || p != end);
 
@@ -327,6 +351,7 @@ void Earcut<N>::earcutLinked(Node* ear, int pass) {
     Node* stop = ear;
     Node* prev;
     Node* next;
+    bool cured = pass > 1;
 
     // iterate through ears, slicing them one by one
     while (ear->prev != ear->next) {
@@ -340,10 +365,8 @@ void Earcut<N>::earcutLinked(Node* ear, int pass) {
             indices.emplace_back(next->i);
 
             removeNode(ear);
-
-            // skipping the next vertice leads to less sliver triangles
-            ear = next->next;
-            stop = next->next;
+            ear = next;
+            stop = next;
 
             continue;
         }
@@ -352,18 +375,25 @@ void Earcut<N>::earcutLinked(Node* ear, int pass) {
 
         // if we looped through the whole remaining polygon and can't find any more ears
         if (ear == stop) {
-            // try filtering points and slicing again
-            if (!pass) earcutLinked(filterPoints(ear), 1);
+            // try filtering collinear/coincident points and slicing again; repeat as long as
+            // filtering actually removes nodes, since each removal can expose new ears
+            filteredOut = false;
+            ear = filterPoints(ear);
+            if (filteredOut) {
+                stop = ear;
+                continue;
+            }
 
-            // if this didn't work, try curing all small self-intersections locally
-            else if (pass == 1) {
-                ear = cureLocalIntersections(filterPoints(ear));
-                earcutLinked(ear, 2);
+            // filtering is exhausted: cure small local self-intersections once, then retry
+            if (!cured) {
+                ear = cureLocalIntersections(ear);
+                stop = ear;
+                cured = true;
+                continue;
+            }
 
-                // as a last resort, try splitting the remaining polygon into two
-            } else if (pass == 2)
-                splitEarcut(ear);
-
+            // as a last resort, try splitting the remaining polygon into two
+            splitEarcut(ear);
             break;
         }
     }
@@ -376,15 +406,23 @@ bool Earcut<N>::isEar(Node* ear) {
     const Node* b = ear;
     const Node* c = ear->next;
 
-    // Create triangle with cached coordinates and bounding box
+    // reflex check (area(a, b, c) >= 0) is hoisted into the earcutLinked caller in JS;
+    // this C++ helper keeps the same predicate locally.
     const Triangle tri(a, b, c);
     if (tri.area() >= 0) return false; // reflex, can't be an ear
 
-    // now make sure we don't have other points inside the potential ear
-    Node* p = ear->next->next;
+    const double minTX = std::min<double>(tri.ax, std::min<double>(tri.bx, tri.cx));
+    const double minTY = std::min<double>(tri.ay, std::min<double>(tri.by, tri.cy));
+    const double maxTX = std::max<double>(tri.ax, std::max<double>(tri.bx, tri.cx));
+    const double maxTY = std::max<double>(tri.ay, std::max<double>(tri.by, tri.cy));
 
-    while (p != ear->prev) {
-        if (tri.containsPoint(p->x, p->y) && area(p->prev, p, p->next) >= 0) return false;
+    // now make sure we don't have other points inside the potential ear
+    Node* p = c->next;
+
+    while (p != a) {
+        if (p->x >= minTX && p->x <= maxTX && p->y >= minTY && p->y <= maxTY && !(tri.ax == p->x && tri.ay == p->y) &&
+            tri.containsPoint(p->x, p->y) && area(p->prev, p, p->next) >= 0)
+            return false;
         p = p->next;
     }
 
@@ -397,7 +435,8 @@ bool Earcut<N>::isEarHashed(Node* ear) {
     const Node* b = ear;
     const Node* c = ear->next;
 
-    // Create triangle with cached coordinates and bounding box
+    // reflex check is hoisted into the earcutLinked caller in JS; this C++ helper keeps
+    // the same predicate locally.
     const Triangle tri(a, b, c);
     if (tri.area() >= 0) return false; // reflex, can't be an ear
 
@@ -411,22 +450,24 @@ bool Earcut<N>::isEarHashed(Node* ear) {
     const int32_t minZ = zOrder(minTX, minTY);
     const int32_t maxZ = zOrder(maxTX, maxTY);
 
-    // first look for points inside the triangle in increasing z-order
-    Node* p = ear->nextZ;
-
-    while (p && p->z <= maxZ) {
-        if (p != ear->prev && p != ear->next && tri.containsPoint(p->x, p->y) && area(p->prev, p, p->next) >= 0)
-            return false;
-        p = p->nextZ;
-    }
-
-    // then look for points in decreasing z-order
-    p = ear->prevZ;
+    // look for points inside the triangle in decreasing z-order
+    Node* p = ear->prevZ;
 
     while (p && p->z >= minZ) {
-        if (p != ear->prev && p != ear->next && tri.containsPoint(p->x, p->y) && area(p->prev, p, p->next) >= 0)
+        if (p->x >= minTX && p->x <= maxTX && p->y >= minTY && p->y <= maxTY && p != c &&
+            !(tri.ax == p->x && tri.ay == p->y) && tri.containsPoint(p->x, p->y) && area(p->prev, p, p->next) >= 0)
             return false;
         p = p->prevZ;
+    }
+
+    // look for points inside the triangle in increasing z-order
+    p = ear->nextZ;
+
+    while (p && p->z <= maxZ) {
+        if (p->x >= minTX && p->x <= maxTX && p->y >= minTY && p->y <= maxTY && p != c &&
+            !(tri.ax == p->x && tri.ay == p->y) && tri.containsPoint(p->x, p->y) && area(p->prev, p, p->next) >= 0)
+            return false;
+        p = p->nextZ;
     }
 
     return true;
@@ -436,12 +477,13 @@ bool Earcut<N>::isEarHashed(Node* ear) {
 template <typename N>
 typename Earcut<N>::Node* Earcut<N>::cureLocalIntersections(Node* start) {
     Node* p = start;
+    bool cured = false;
     do {
         Node* a = p->prev;
         Node* b = p->next->next;
 
         // a self-intersection where edge (v[i-1],v[i]) intersects (v[i+1],v[i+2])
-        if (!equals(a, b) && intersects(a, p, p->next, b) && locallyInside(a, b) && locallyInside(b, a)) {
+        if (intersects(a, p, p->next, b, false) && locallyInside(a, b) && locallyInside(b, a)) {
             indices.emplace_back(a->i);
             indices.emplace_back(p->i);
             indices.emplace_back(b->i);
@@ -451,11 +493,12 @@ typename Earcut<N>::Node* Earcut<N>::cureLocalIntersections(Node* start) {
             removeNode(p->next);
 
             p = start = b;
+            cured = true;
         }
         p = p->next;
     } while (p != start);
 
-    return filterPoints(p);
+    return cured ? filterPoints(p) : p;
 }
 
 // try splitting polygon into two and triangulate them independently
@@ -499,17 +542,32 @@ typename Earcut<N>::Node* Earcut<N>::eliminateHoles(const Polygon& points, Node*
             holeQueue.push_back(getLeftmost(list));
         }
     }
-    std::sort(holeQueue.begin(), holeQueue.end(), [](const Node* a, const Node* b) { return a->x < b->x; });
+    std::sort(holeQueue.begin(), holeQueue.end(), [](const Node* a, const Node* b) {
+        // when the left-most point of 2 holes meet at a vertex, sort the holes counterclockwise so that when we find
+        // the bridge to the outer shell is always the point that they meet at.
+        return a->x < b->x ||
+               (a->x == b->x && (a->y < b->y || (a->y == b->y && (a->next->y - a->y) / (a->next->x - a->x) <
+                                                                     (b->next->y - b->y) / (b->next->x - b->x))));
+    });
 
-    // process holes from left to right
+    // block-bbox index for findHoleBridge, grown append-only as holes merge. Seed it
+    // with the outer ring, then append each merged hole.
+    buildBlockIndex(vertices, holeQueue.size());
+    indexSegment(outerNode, outerNode);
+
+    // process holes from left to right; indexActive lets removeNode keep block bboxes live as
+    // filterPoints heals edges during merges (see growBlock)
+    indexActive = true;
     for (size_t i = 0; i < holeQueue.size(); i++) {
         outerNode = eliminateHole(holeQueue[i], outerNode);
     }
+    indexActive = false;
 
-    return outerNode;
+    // collapse collinear/coincident points across the whole merged ring once before clipping
+    return filterPoints(outerNode);
 }
 
-// find a bridge between vertices that connects hole with an outer ring and and link it
+// find a bridge between vertices that connects hole with an outer ring and link it
 template <typename N>
 typename Earcut<N>::Node* Earcut<N>::eliminateHole(Node* hole, Node* outerNode) {
     Node* bridge = findHoleBridge(hole, outerNode);
@@ -519,10 +577,15 @@ typename Earcut<N>::Node* Earcut<N>::eliminateHole(Node* hole, Node* outerNode) 
 
     Node* bridgeReverse = splitPolygon(bridge, hole);
 
-    // filter collinear points around the cuts
-    filterPoints(bridgeReverse, bridgeReverse->next);
+    // index the merged-in segment before filtering: in ring order the splice runs
+    // bridge -> hole -> bridgeReverse -> bridge2 -> (bridge's old next), covering the
+    // hole's edges and both new slit edges. filterPoints below only drops collinear /
+    // coincident points, so these bboxes stay valid (conservative) supersets.
+    Node* bridge2 = bridgeReverse->next;
+    indexSegment(bridge, bridge2->next);
 
-    // Check if input node was removed by the filtering
+    // heal collinear/coincident points around the two new slit edges
+    filterPoints(bridgeReverse, bridgeReverse->next);
     return filterPoints(bridge, bridge->next);
 }
 
@@ -535,48 +598,76 @@ typename Earcut<N>::Node* Earcut<N>::findHoleBridge(Node* hole, Node* outerNode)
     double qx = -std::numeric_limits<double>::max();
     Node* m = nullptr;
 
-    // find a segment intersected by a ray from the hole's leftmost Vertex to the left;
-    // segment's endpoint with lesser x will be potential connection Vertex
-    do {
-        if (hy <= p->y && hy >= p->next->y && p->next->y != p->y) {
-            double x = p->x + (hy - p->y) * (p->next->x - p->x) / (p->next->y - p->y);
-            if (x <= hx && x > qx) {
-                qx = x;
-                m = p->x < p->next->x ? p : p->next;
-                if (x == hx) return m; // hole touches outer segment; pick leftmost endpoint
+    if (equals(hole, p)) return p;
+
+    // find a segment intersected by a ray from the hole's leftmost point to the left;
+    // segment's endpoint with lesser x will be potential connection point
+    // unless they intersect at a vertex, then choose the vertex
+    for (std::size_t block = 0; block < numBlocks; block++) {
+        const auto& bbox = blockBBox[block];
+        // scan blocks; skip any whose bbox can't hold a crossing that beats qx and lies left
+        // of hx (the prune Morton order can't express -- explicit per-axis [minY,maxY]/[minX,maxX])
+        if (hy < bbox[1] || hy > bbox[3] || bbox[0] > hx || bbox[2] <= qx) continue;
+
+        // ensure the walk's exclusive bound is live so we don't overrun into other blocks
+        Node* stop = liveBlockStop(block);
+        p = liveBlockHead(block);
+        do {
+            if (p->prev->next == p) { // skip nodes removed by filterPoints (stale in the index)
+                if (equals(hole, p->next)) return p->next;
+                if (hy <= p->y && hy >= p->next->y && p->next->y != p->y) {
+                    double x = p->x + (hy - p->y) * (p->next->x - p->x) / (p->next->y - p->y);
+                    if (x <= hx && x > qx) {
+                        qx = x;
+                        m = p->x < p->next->x ? p : p->next;
+                        if (x == hx) return m; // hole touches outer segment; pick leftmost endpoint
+                    }
+                }
             }
-        }
-        p = p->next;
-    } while (p != outerNode);
+            p = p->next;
+        } while (p != stop);
+    }
 
     if (!m) return 0;
 
-    // look for points inside the triangle of hole Vertex, segment intersection and endpoint;
+    // look for points inside the triangle of hole point, segment intersection and endpoint;
     // if there are no points found, we have a valid connection;
-    // otherwise choose the Vertex of the minimum angle with the ray as connection Vertex
+    // otherwise choose the point of the minimum angle with the ray as connection point
 
-    const Node* stop = m;
     double tanMin = std::numeric_limits<double>::max();
     double tanCur = 0;
 
-    p = m;
     double mx = m->x;
     double my = m->y;
+    // the triangle's y span; x span is [mx, hx]
+    double tminY = std::min<double>(hy, my);
+    double tmaxY = std::max<double>(hy, my);
 
-    do {
-        if (hx >= p->x && p->x >= mx && hx != p->x &&
-            pointInTriangle(hy < my ? hx : qx, hy, mx, my, hy < my ? qx : hx, hy, p->x, p->y)) {
-            tanCur = std::abs(hy - p->y) / (hx - p->x); // tangential
+    for (std::size_t block = 0; block < numBlocks; block++) {
+        const auto& bbox = blockBBox[block];
+        // scan the same blocks; skip any whose bbox can't overlap the triangle's [mx,hx] x [tminY,tmaxY] box
+        if (bbox[2] < mx || bbox[0] > hx || bbox[3] < tminY || bbox[1] > tmaxY) continue;
 
-            if (locallyInside(p, hole) &&
-                (tanCur < tanMin || (tanCur == tanMin && (p->x > m->x || sectorContainsSector(m, p))))) {
-                m = p;
-                tanMin = tanCur;
+        Node* stop = liveBlockStop(block);
+        p = liveBlockHead(block);
+        do {
+            if (p->prev->next == p && hx >= p->x && p->x >= mx && hx != p->x && // skip dead nodes
+                pointInTriangle(hy < my ? hx : qx, hy, mx, my, hy < my ? qx : hx, hy, p->x, p->y)) {
+                tanCur = std::abs(hy - p->y) / (hx - p->x); // tangential
+
+                // if hole point sits on p's horizontal edge (T-junction touch): the bridge runs
+                // along that edge; locallyInside rejects it as collinear, but it's valid
+                if ((locallyInside(p, hole) || (p->y == hy && p->next->y == hy && p->next->x > hx)) &&
+                    (tanCur < tanMin ||
+                     (tanCur == tanMin && (p->x > m->x || (p->x == m->x && sectorContainsSector(m, p)))))) {
+                    m = p;
+                    tanMin = tanCur;
+                }
             }
-        }
 
-        p = p->next;
-    } while (p != stop);
+            p = p->next;
+        } while (p != stop);
+    }
 
     return m;
 }
@@ -587,6 +678,89 @@ bool Earcut<N>::sectorContainsSector(const Node* m, const Node* p) {
     return area(m->prev, m, p->prev) < 0 && area(p->next, m, m->next) < 0;
 }
 
+// Block-bbox index for findHoleBridge (issue #183): one [minX,minY,maxX,maxY] bbox per K
+// consecutive ring edges, so the leftward-ray scan can skip whole blocks in O(1) instead
+// of walking the entire merged ring. Grown append-only: the outer ring seeds it, then each
+// merged hole appends a segment (head node, stop node, K-blocks over head..stop); independent
+// segments, not a ring tiling, since splices land mid-ring. Buffers are sized once from the
+// input upper bound and reused across calls.
+//
+// filterPoints only drops collinear/coincident points, so a stale bbox stays a conservative
+// superset of its live edges (never a false skip); the scan skips dead nodes (p->prev->next != p)
+// and lazily advances a dead stop. Blocks are scanned in append (not ring) order, so the chosen
+// bridge can differ from the un-indexed code -- a different but equally valid result.
+template <typename N>
+void Earcut<N>::buildBlockIndex(std::size_t maxNodes, std::size_t numHoles) {
+    const std::size_t k = 16;
+    const std::size_t maxBlocks = (maxNodes + 2 * numHoles + k - 1) / k + numHoles + 2;
+    blockBBox.resize(maxBlocks);
+    blockHead.resize(maxBlocks);
+    blockStop.resize(maxBlocks);
+    numBlocks = 0;
+}
+
+template <typename N>
+void Earcut<N>::indexSegment(Node* head, Node* stop) {
+    const std::size_t k = 16;
+    Node* p = head;
+    do {
+        const std::size_t block = numBlocks++;
+        blockHead[block] = p;
+
+        double minBX = std::numeric_limits<double>::infinity();
+        double minBY = std::numeric_limits<double>::infinity();
+        double maxBX = -std::numeric_limits<double>::infinity();
+        double maxBY = -std::numeric_limits<double>::infinity();
+
+        std::size_t count = 0;
+        do {
+            Node* c = p->next; // edge p->c; bbox must bound both endpoints
+            p->z = static_cast<int32_t>(block);
+            minBX = std::min<double>(minBX, std::min<double>(p->x, c->x));
+            minBY = std::min<double>(minBY, std::min<double>(p->y, c->y));
+            maxBX = std::max<double>(maxBX, std::max<double>(p->x, c->x));
+            maxBY = std::max<double>(maxBY, std::max<double>(p->y, c->y));
+            p = c;
+        } while (++count < k && p != stop);
+
+        blockStop[block] = p;
+        blockBBox[block] = {{minBX, minBY, maxBX, maxBY}};
+    } while (p != stop);
+}
+
+// when filterPoints heals an edge head->tail (removing the collinear node between them), the
+// healed edge can extend past head's frozen block bbox if its old far endpoint lived in another
+// block; grow head's block bbox to cover tail so the leftward-ray prune can't false-skip it.
+template <typename N>
+void Earcut<N>::growBlock(Node* head, Node* tail) {
+    auto& bbox = blockBBox[static_cast<std::size_t>(head->z)];
+    bbox[0] = std::min<double>(bbox[0], tail->x);
+    bbox[1] = std::min<double>(bbox[1], tail->y);
+    bbox[2] = std::max<double>(bbox[2], tail->x);
+    bbox[3] = std::max<double>(bbox[3], tail->y);
+}
+
+// advance the block's exclusive walk bound past nodes removed by filterPoints
+template <typename N>
+typename Earcut<N>::Node* Earcut<N>::liveBlockStop(std::size_t block) {
+    Node* stop = blockStop[block];
+    while (stop->prev->next != stop) stop = stop->next;
+    blockStop[block] = stop;
+    return stop;
+}
+
+// the block's head node can be removed by filterPoints during merges; advance it to the next
+// live node so the walk doesn't start on (and immediately terminate at) a dead node. For the
+// single full-ring seed block (head == stop) the same forward advance keeps them equal, so the
+// do-while still laps the whole ring instead of collapsing to an empty walk.
+template <typename N>
+typename Earcut<N>::Node* Earcut<N>::liveBlockHead(std::size_t block) {
+    Node* head = blockHead[block];
+    while (head->prev->next != head) head = head->next;
+    blockHead[block] = head;
+    return head;
+}
+
 // interlink polygon nodes in z-order
 template <typename N>
 void Earcut<N>::indexCurve(Node* start) {
@@ -594,7 +768,8 @@ void Earcut<N>::indexCurve(Node* start) {
     Node* p = start;
 
     do {
-        p->z = p->z ? p->z : zOrder(p->x, p->y);
+        // always (re)compute: z may still hold a block index left over from eliminateHoles
+        p->z = zOrder(p->x, p->y);
         p->prevZ = p->prev;
         p->nextZ = p->next;
         p = p->next;
@@ -603,7 +778,7 @@ void Earcut<N>::indexCurve(Node* start) {
     p->prevZ->nextZ = nullptr;
     p->prevZ = nullptr;
 
-    sortLinked(p);
+    p = sortLinked(p);
 }
 
 // Simon Tatham's linked list merge sort algorithm
@@ -719,12 +894,11 @@ bool Earcut<N>::pointInTriangle(
 // check if a diagonal between two polygon nodes is valid (lies in polygon interior)
 template <typename N>
 bool Earcut<N>::isValidDiagonal(Node* a, Node* b) {
-    return a->next->i != b->i && a->prev->i != b->i && !intersectsPolygon(a, b) && // dones't intersect other edges
-           ((locallyInside(a, b) && locallyInside(b, a) && middleInside(a, b) &&   // locally visible
-             (area(a->prev, a, b->prev) != 0.0 ||
-              area(a, b->prev, b) != 0.0)) || // does not create opposite-facing sectors
-            (equals(a, b) && area(a->prev, a, a->next) > 0 &&
-             area(b->prev, b, b->next) > 0)); // special zero-length case
+    const bool zeroLength = equals(a, b) && area(a->prev, a, a->next) > 0 && area(b->prev, b, b->next) > 0;
+    return a->next->i != b->i &&
+           (zeroLength || (locallyInside(a, b) && locallyInside(b, a) &&
+                           (area(a->prev, a, b->prev) != 0.0 || area(a, b->prev, b) != 0.0))) &&
+           !intersectsPolygon(a, b) && (zeroLength || middleInside(a, b));
 }
 
 // signed area of a triangle
@@ -739,15 +913,17 @@ bool Earcut<N>::equals(const Node* p1, const Node* p2) {
     return p1->x == p2->x && p1->y == p2->y;
 }
 
-// check if two segments intersect
+// check if two segments intersect; by default includes collinear boundary touches
 template <typename N>
-bool Earcut<N>::intersects(const Node* p1, const Node* q1, const Node* p2, const Node* q2) {
-    int o1 = sign(area(p1, q1, p2));
-    int o2 = sign(area(p1, q1, q2));
-    int o3 = sign(area(p2, q2, p1));
-    int o4 = sign(area(p2, q2, q1));
+bool Earcut<N>::intersects(const Node* p1, const Node* q1, const Node* p2, const Node* q2, bool includeBoundary) {
+    double o1 = area(p1, q1, p2);
+    double o2 = area(p1, q1, q2);
+    double o3 = area(p2, q2, p1);
+    double o4 = area(p2, q2, q1);
 
-    if (o1 != o2 && o3 != o4) return true; // general case
+    if (((o1 > 0 && o2 < 0) || (o1 < 0 && o2 > 0)) && ((o3 > 0 && o4 < 0) || (o3 < 0 && o4 > 0))) return true;
+
+    if (!includeBoundary) return false;
 
     if (o1 == 0 && onSegment(p1, p2, q1)) return true; // p1, q1 and p2 are collinear and p2 lies on p1q1
     if (o2 == 0 && onSegment(p1, q2, q1)) return true; // p1, q1 and q2 are collinear and q2 lies on p1q1
@@ -772,11 +948,23 @@ int Earcut<N>::sign(double val) {
 // check if a polygon diagonal intersects any polygon segments
 template <typename N>
 bool Earcut<N>::intersectsPolygon(const Node* a, const Node* b) {
+    // diagonal bbox; an edge whose bbox can't overlap it can't intersect it, so
+    // skip the orientation test for those (the common case -- the diagonal is short)
+    const double minPX = std::min<double>(a->x, b->x);
+    const double maxPX = std::max<double>(a->x, b->x);
+    const double minPY = std::min<double>(a->y, b->y);
+    const double maxPY = std::max<double>(a->y, b->y);
+
     const Node* p = a;
     do {
-        if (p->i != a->i && p->next->i != a->i && p->i != b->i && p->next->i != b->i && intersects(p, p->next, a, b))
-            return true;
-        p = p->next;
+        const Node* n = p->next;
+        if ((p->x > maxPX && n->x > maxPX) || (p->x < minPX && n->x < minPX) || (p->y > maxPY && n->y > maxPY) ||
+            (p->y < minPY && n->y < minPY)) {
+            p = n;
+            continue;
+        }
+        if (p->i != a->i && n->i != a->i && p->i != b->i && n->i != b->i && intersects(p, n, a, b)) return true;
+        p = n;
     } while (p != a);
 
     return false;
@@ -858,6 +1046,9 @@ void Earcut<N>::removeNode(Node* p) {
 
     if (p->prevZ) p->prevZ->nextZ = p->nextZ;
     if (p->nextZ) p->nextZ->prevZ = p->prevZ;
+
+    // keep the hole-bridge index's block bboxes covering the healed prev->next edge
+    if (indexActive) growBlock(p->prev, p->next);
 }
 } // namespace detail
 
@@ -866,5 +1057,186 @@ std::vector<N> earcut(const Polygon& poly) {
     mapbox::detail::Earcut<N> earcut;
     earcut(poly);
     return std::move(earcut.indices);
+}
+
+namespace detail {
+
+// signed area of a triangle
+inline double orient(double ax, double ay, double bx, double by, double cx, double cy) {
+    return (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+}
+
+// Whether p is inside or exactly on the circumcircle of triangle (a, b, c). Sign is negated vs the
+// usual predicate to match earcut's CCW winding -- the standard sign would build the anti-Delaunay
+// mesh. Cocircular quads are legal ties, so refine only flips when this returns false.
+inline bool inCircle(double ax, double ay, double bx, double by, double cx, double cy, double px, double py) {
+    const double dx = ax - px;
+    const double dy = ay - py;
+    const double ex = bx - px;
+    const double ey = by - py;
+    const double fx = cx - px;
+    const double fy = cy - py;
+    const double ap = dx * dx + dy * dy;
+    const double bp = ex * ex + ey * ey;
+    const double cp = fx * fx + fy * fy;
+    // A near-cocircular quad is a legal Delaunay tie, but roundoff can flag both an edge and its
+    // flip as illegal, cascading into an endless flip loop (#205) -- so treat a determinant within
+    // a small margin of zero as a tie. The determinant's worst-case roundoff error is provably
+    // below 9e-16 (ap + bp + cp)^2 (Shewchuk-style bound), so the margin guarantees every executed
+    // flip is illegal in exact arithmetic, and Lawson flipping always terminates.
+    const double s = ap + bp + cp;
+    return dx * (ey * cp - bp * fy) - dy * (ex * cp - bp * fx) + ap * (ex * fy - ey * fx) <= 1e-13 * s * s;
+}
+
+// next half-edge within the same triangle
+inline std::size_t nextHalfEdge(std::size_t edge) {
+    return edge - edge % 3 + (edge + 1) % 3;
+}
+
+template <typename Polygon>
+inline double polygonCoord(const Polygon& polygon, std::size_t index, std::size_t axis) {
+    for (const auto& ring : polygon) {
+        if (index < ring.size()) {
+            using Point = typename std::decay<decltype(ring[0])>::type;
+            return axis == 0 ? util::nth<0, Point>::get(ring[index]) : util::nth<1, Point>::get(ring[index]);
+        }
+        index -= ring.size();
+    }
+    return 0;
+}
+
+} // namespace detail
+
+template <typename N, typename Polygon>
+
+// Refine a triangulation toward the constrained Delaunay triangulation by legalizing every
+// interior edge in place with Lawson flips -- maximizing the minimum angle and removing most
+// slivers. An optional post-pass for earcut output, or any manifold triangle-index array
+// indexing into coords. Adapted from delaunator's edge legalization.
+//
+// Uses non-robust predicates: float input is fine, and the worst case is a not-quite-Delaunay
+// edge, never an invalid mesh.
+void refine(std::vector<N>& triangles, const Polygon& poly) {
+    const std::size_t n = triangles.size();
+    if (n < 6) return;
+
+    std::vector<int32_t> halfEdges(n, -1);
+    std::vector<int32_t> hashTable;
+    std::vector<uint32_t> hashStamp;
+    std::vector<uint8_t> edgeStamp(n, 0);
+    std::vector<int32_t> edgeStack;
+    edgeStack.reserve(n);
+
+    // Build half-edge twins with an undirected-edge hash; consumed slots mark linked pairs. As each
+    // pair is linked we seed the stack with one representative (s, the earlier-inserted edge) -- this
+    // fuses the initial "push every interior edge" pass into the build, saving a full O(n) scan.
+    // edgeStamp is all-zero here (balanced push/pop leaves it clean) and each pair links once, so
+    // the seed write needs no dedup guard.
+    std::size_t size = 1;
+    while (size < n * 4) size <<= 1;
+    hashTable.assign(size, 0);
+    hashStamp.assign(size, 0);
+    const uint32_t generation = 1;
+    const std::size_t hashMask = size - 1;
+
+    for (std::size_t edge = 0; edge < n; edge++) {
+        const N a = [trianglesedge];
+        const N b = triangles[detail::nextHalfEdge(edge)];
+        const N lo = a < b ? a : b;
+        const N hi = a < b ? b : a;
+        std::size_t hash =
+            (static_cast<std::size_t>(lo) * 0x9e3779b1u ^ static_cast<std::size_t>(hi) * 0x85ebca6bu) & hashMask;
+
+        while (hashStamp[hash] == generation) {
+            const int32_t sibling = hashTable[hash];
+            // -1 marks a consumed slot (a pair already linked) -- skip past it
+            if (sibling != -1) {
+                const N siblingA = triangles[static_cast<std::size_t>(sibling)];
+                const N siblingB = triangles[detail::nextHalfEdge(static_cast<std::size_t>(sibling))];
+                if ((siblingA == lo && siblingB == hi) || (siblingA == hi && siblingB == lo)) {
+                    halfEdges[edge] = sibling;
+                    halfEdges[static_cast<std::size_t>(sibling)] = static_cast<int32_t>(edge);
+                    hashTable[hash] = -1;
+                    edgeStamp[static_cast<std::size_t>(sibling)] = 1;
+                    edgeStack.push_back(sibling);
+                    break;
+                }
+            }
+            hash = (hash + 1) & hashMask;
+        }
+        if (hashStamp[hash] != generation) {
+            // first occurrence: insert
+            hashTable[hash] = static_cast<int32_t>(edge);
+            hashStamp[hash] = generation;
+        }
+    }
+
+    while (!edgeStack.empty()) {
+        const int32_t a = edgeStack.back();
+        edgeStack.pop_back();
+        edgeStamp[static_cast<std::size_t>(a)] = 0;
+        const int32_t b = halfEdges[static_cast<std::size_t>(a)];
+        if (b == -1) continue;
+
+        const std::size_t aEdge = static_cast<std::size_t>(a);
+        const std::size_t bEdge = static_cast<std::size_t>(b);
+        const std::size_t a0 = aEdge - aEdge % 3;
+        const std::size_t b0 = bEdge - bEdge % 3;
+        const std::size_t ar = a0 + (aEdge + 2) % 3;
+        const std::size_t al = a0 + (aEdge + 1) % 3;
+        const std::size_t bl = b0 + (bEdge + 2) % 3;
+        const std::size_t br = b0 + (bEdge + 1) % 3;
+        const N p0 = triangles[ar];
+        const N pr = triangles[aEdge];
+        const N pl = triangles[al];
+        const N p1 = triangles[bl];
+
+        const double x0 = detail::polygonCoord(poly, static_cast<std::size_t>(p0), 0);
+        const double y0 = detail::polygonCoord(poly, static_cast<std::size_t>(p0), 1);
+        const double xr = detail::polygonCoord(poly, static_cast<std::size_t>(pr), 0);
+        const double yr = detail::polygonCoord(poly, static_cast<std::size_t>(pr), 1);
+        const double xl = detail::polygonCoord(poly, static_cast<std::size_t>(pl), 0);
+        const double yl = detail::polygonCoord(poly, static_cast<std::size_t>(pl), 1);
+        const double x1 = detail::polygonCoord(poly, static_cast<std::size_t>(p1), 0);
+        const double y1 = detail::polygonCoord(poly, static_cast<std::size_t>(p1), 1);
+
+        // Test inCircle first: most interior edges are already Delaunay (inCircle true -> no flip),
+        // so this short-circuits before the two convexity orients on the common path. The quad must
+        // also be convex (both new triangles CCW) -- flipping a reflex quad would push a triangle
+        // outside the polygon. Boundary/hole edges need no guard -- they self-protect via he == -1.
+        if (!detail::inCircle(x0, y0, xr, yr, xl, yl, x1, y1) && detail::orient(x0, y0, xr, yr, x1, y1) > 0 &&
+            detail::orient(x0, y0, x1, y1, xl, yl) > 0) {
+            triangles[aEdge] = p1;
+            triangles[bEdge] = p0;
+
+            const int32_t hbl = halfEdges[bl];
+            const int32_t har = halfEdges[ar];
+            halfEdges[aEdge] = hbl;
+            if (hbl != -1) halfEdges[static_cast<std::size_t>(hbl)] = a;
+            halfEdges[bEdge] = har;
+            if (har != -1) halfEdges[static_cast<std::size_t>(har)] = b;
+            halfEdges[ar] = static_cast<int32_t>(bl);
+            halfEdges[bl] = static_cast<int32_t>(ar);
+
+            // re-check the quad's four outer edges; skip boundary edges (he == -1) and any
+            // already queued (edgeStamp), which also keeps the stack bounded by n.
+            if (hbl != -1 && edgeStamp[aEdge] == 0) {
+                edgeStamp[aEdge] = 1;
+                edgeStack.push_back(a);
+            }
+            if (har != -1 && edgeStamp[bEdge] == 0) {
+                edgeStamp[bEdge] = 1;
+                edgeStack.push_back(b);
+            }
+            if (halfEdges[al] != -1 && edgeStamp[al] == 0) {
+                edgeStamp[al] = 1;
+                edgeStack.push_back(static_cast<int32_t>(al));
+            }
+            if (halfEdges[br] != -1 && edgeStamp[br] == 0) {
+                edgeStamp[br] = 1;
+                edgeStack.push_back(static_cast<int32_t>(br));
+            }
+        }
+    }
 }
 } // namespace mapbox

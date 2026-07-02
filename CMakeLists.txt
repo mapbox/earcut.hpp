@@ -95,6 +95,8 @@ if (EARCUT_BUILD_TESTS)
     add_executable(tests test/test.cpp $<TARGET_OBJECTS:fixtures>)
     target_link_libraries(tests PRIVATE earcut_hpp common gtest gtest_main)
 
+    file(COPY test/tiles-fixture.bin DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/test)
+
     # Fix floating-point precision issues on different architectures (see issues #97 and #103)
     target_compile_options(tests PRIVATE
         $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-ffp-contract=off>
