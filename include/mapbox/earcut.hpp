@@ -66,11 +66,25 @@ private:
         const double ax, ay;
         const double bx, by;
         const double cx, cy;
+        // triangle bounding box, used to cheaply reject most candidate points before the
+        // full point-in-triangle test (which is 6 multiplies)
+        const double minX, minY, maxX, maxY;
 
         Triangle(const Node* a, const Node* b, const Node* c)
-            : ax(a->x), ay(a->y), bx(b->x), by(b->y), cx(c->x), cy(c->y) {}
+            : ax(a->x),
+              ay(a->y),
+              bx(b->x),
+              by(b->y),
+              cx(c->x),
+              cy(c->y),
+              minX(std::min<double>(ax, std::min<double>(bx, cx))),
+              minY(std::min<double>(ay, std::min<double>(by, cy))),
+              maxX(std::max<double>(ax, std::max<double>(bx, cx))),
+              maxY(std::max<double>(ay, std::max<double>(by, cy))) {}
 
         inline double area() const { return (by - ay) * (cx - bx) - (bx - ax) * (cy - by); }
+
+        inline bool inBBox(double px, double py) const { return px >= minX && px <= maxX && py >= minY && py <= maxY; }
 
         inline bool containsPoint(double px, double py) const {
             return (cx - px) * (ay - py) >= (ax - px) * (cy - py) && (ax - px) * (by - py) >= (bx - px) * (ay - py) &&
@@ -86,7 +100,7 @@ private:
     template <typename Ring>
     Node* linkedList(const Ring& points, const bool clockwise);
     Node* filterPoints(Node* start, Node* end = nullptr);
-    void earcutLinked(Node* ear, int pass = 0);
+    void earcutLinked(Node* ear);
     bool isEar(Node* ear);
     bool isEarHashed(Node* ear);
     Node* cureLocalIntersections(Node* start);
@@ -115,6 +129,9 @@ private:
     void removeNode(Node* p);
 
     bool hashing;
+    // set by filterPoints whenever it removes at least one node; read by earcutLinked's stall
+    // handler to decide whether another clip pass is worth attempting before the costlier stages
+    bool filteredOut = false;
     double minX, maxX;
     double minY, maxY;
     double inv_size = 0;
@@ -228,11 +245,7 @@ void Earcut<N>::operator()(const Polygon& points) {
     Node* outerNode = linkedList(points[0], true);
     if (!outerNode || outerNode->prev == outerNode->next) return;
 
-    if (points.size() > 1) {
-        outerNode = eliminateHoles(points, outerNode);
-        // collapse collinear/coincident points across the whole merged ring once before clipping
-        outerNode = filterPoints(outerNode);
-    }
+    if (points.size() > 1) outerNode = eliminateHoles(points, outerNode);
 
     // if the shape is not too simple, we'll use z-order curve hash later; calculate polygon bbox
     hashing = threshold < 0;
@@ -316,6 +329,7 @@ typename Earcut<N>::Node* Earcut<N>::filterPoints(Node* start, Node* end) {
         again = false;
         if (p != p->next && !p->steiner && (equals(p, p->next) || area(p->prev, p, p->next) == 0)) {
             if (full || p == end) end = p->prev; // pull the stop bound back past the removal
+            filteredOut = true;
             removeNode(p);
             p = p->prev; // re-check the predecessor
             again = true;
@@ -330,22 +344,24 @@ typename Earcut<N>::Node* Earcut<N>::filterPoints(Node* start, Node* end) {
 
 // main ear slicing loop which triangulates a polygon (given as a linked list)
 template <typename N>
-void Earcut<N>::earcutLinked(Node* ear, int pass) {
+void Earcut<N>::earcutLinked(Node* ear) {
     if (!ear) return;
 
     // interlink polygon nodes in z-order
-    if (!pass && hashing) indexCurve(ear);
+    if (hashing) indexCurve(ear);
 
     Node* stop = ear;
     Node* prev;
     Node* next;
+    bool cured = false;
 
     // iterate through ears, slicing them one by one
     while (ear->prev != ear->next) {
         prev = ear->prev;
         next = ear->next;
 
-        if (hashing ? isEarHashed(ear) : isEar(ear)) {
+        // reflex check is hoisted here to avoid constructing the Triangle for reflex corners
+        if (area(prev, ear, next) < 0 && (hashing ? isEarHashed(ear) : isEar(ear))) {
             // cut off the triangle
             indices.emplace_back(prev->i);
             indices.emplace_back(ear->i);
@@ -363,18 +379,25 @@ void Earcut<N>::earcutLinked(Node* ear, int pass) {
 
         // if we looped through the whole remaining polygon and can't find any more ears
         if (ear == stop) {
-            // try filtering points and slicing again
-            if (!pass) earcutLinked(filterPoints(ear), 1);
+            // try filtering collinear/coincident points and slicing again — repeat as long as
+            // filtering actually removes nodes, since each removal can expose new ears
+            filteredOut = false;
+            ear = filterPoints(ear);
+            if (filteredOut) {
+                stop = ear;
+                continue;
+            }
 
-            // if this didn't work, try curing all small self-intersections locally
-            else if (pass == 1) {
-                ear = cureLocalIntersections(filterPoints(ear));
-                earcutLinked(ear, 2);
+            // filtering is exhausted: cure small local self-intersections once, then retry
+            if (!cured) {
+                ear = cureLocalIntersections(ear);
+                stop = ear;
+                cured = true;
+                continue;
+            }
 
-                // as a last resort, try splitting the remaining polygon into two
-            } else if (pass == 2)
-                splitEarcut(ear);
-
+            // as a last resort, try splitting the remaining polygon into two
+            splitEarcut(ear);
             break;
         }
     }
@@ -387,15 +410,15 @@ bool Earcut<N>::isEar(Node* ear) {
     const Node* b = ear;
     const Node* c = ear->next;
 
-    // Create triangle with cached coordinates and bounding box
+    // reflex check is hoisted into the earcutLinked caller
     const Triangle tri(a, b, c);
-    if (tri.area() >= 0) return false; // reflex, can't be an ear
 
     // now make sure we don't have other points inside the potential ear
     Node* p = ear->next->next;
 
     while (p != ear->prev) {
-        if (tri.containsPointExceptFirst(p->x, p->y) && area(p->prev, p, p->next) >= 0) return false;
+        if (tri.inBBox(p->x, p->y) && tri.containsPointExceptFirst(p->x, p->y) && area(p->prev, p, p->next) >= 0)
+            return false;
         p = p->next;
     }
 
@@ -408,25 +431,18 @@ bool Earcut<N>::isEarHashed(Node* ear) {
     const Node* b = ear;
     const Node* c = ear->next;
 
-    // Create triangle with cached coordinates and bounding box
+    // reflex check is hoisted into the earcutLinked caller
     const Triangle tri(a, b, c);
-    if (tri.area() >= 0) return false; // reflex, can't be an ear
-
-    // triangle bbox; min & max are calculated like this for speed
-    const double minTX = std::min<double>(tri.ax, std::min<double>(tri.bx, tri.cx));
-    const double minTY = std::min<double>(tri.ay, std::min<double>(tri.by, tri.cy));
-    const double maxTX = std::max<double>(tri.ax, std::max<double>(tri.bx, tri.cx));
-    const double maxTY = std::max<double>(tri.ay, std::max<double>(tri.by, tri.cy));
 
     // z-order range for the current triangle bbox;
-    const int32_t minZ = zOrder(minTX, minTY);
-    const int32_t maxZ = zOrder(maxTX, maxTY);
+    const int32_t minZ = zOrder(tri.minX, tri.minY);
+    const int32_t maxZ = zOrder(tri.maxX, tri.maxY);
 
     // first look for points inside the triangle in increasing z-order
     Node* p = ear->nextZ;
 
     while (p && p->z <= maxZ) {
-        if (p != ear->prev && p != ear->next && tri.containsPointExceptFirst(p->x, p->y) &&
+        if (p != ear->next && tri.inBBox(p->x, p->y) && tri.containsPointExceptFirst(p->x, p->y) &&
             area(p->prev, p, p->next) >= 0)
             return false;
         p = p->nextZ;
@@ -436,7 +452,7 @@ bool Earcut<N>::isEarHashed(Node* ear) {
     p = ear->prevZ;
 
     while (p && p->z >= minZ) {
-        if (p != ear->prev && p != ear->next && tri.containsPointExceptFirst(p->x, p->y) &&
+        if (p != ear->next && tri.inBBox(p->x, p->y) && tri.containsPointExceptFirst(p->x, p->y) &&
             area(p->prev, p, p->next) >= 0)
             return false;
         p = p->prevZ;
@@ -530,7 +546,8 @@ typename Earcut<N>::Node* Earcut<N>::eliminateHoles(const Polygon& points, Node*
         outerNode = eliminateHole(holeQueue[i], outerNode);
     }
 
-    return outerNode;
+    // collapse collinear/coincident points across the whole merged ring once before clipping
+    return filterPoints(outerNode);
 }
 
 // find a bridge between vertices that connects hole with an outer ring and and link it
@@ -750,12 +767,14 @@ bool Earcut<N>::pointInTriangle(
 // check if a diagonal between two polygon nodes is valid (lies in polygon interior)
 template <typename N>
 bool Earcut<N>::isValidDiagonal(Node* a, Node* b) {
-    return a->next->i != b->i && !intersectsPolygon(a, b) &&                     // doesn't intersect other edges
-           ((locallyInside(a, b) && locallyInside(b, a) && middleInside(a, b) && // locally visible
-             (area(a->prev, a, b->prev) != 0.0 ||
-              area(a, b->prev, b) != 0.0)) || // does not create opposite-facing sectors
-            (equals(a, b) && area(a->prev, a, a->next) > 0 &&
-             area(b->prev, b, b->next) > 0)); // special zero-length case
+    // degenerate zero-length case
+    const bool zeroLength = equals(a, b) && area(a->prev, a, a->next) > 0 && area(b->prev, b, b->next) > 0;
+    return a->next->i != b->i &&
+           (zeroLength ||
+            (locallyInside(a, b) && locallyInside(b, a) &&                         // locally visible
+             (area(a->prev, a, b->prev) != 0.0 || area(a, b->prev, b) != 0.0))) && // no opposite-facing sectors
+           !intersectsPolygon(a, b) &&                                             // doesn't intersect other edges
+           (zeroLength || middleInside(a, b));                                     // diagonal inside polygon
 }
 
 // signed area of a triangle
@@ -801,11 +820,23 @@ bool Earcut<N>::onSegment(const Node* p, const Node* q, const Node* r) {
 // check if a polygon diagonal intersects any polygon segments
 template <typename N>
 bool Earcut<N>::intersectsPolygon(const Node* a, const Node* b) {
+    // diagonal bbox; an edge whose bbox can't overlap it can't intersect it, so
+    // skip the orientation test for those (the common case — the diagonal is short)
+    const double minX = std::min<double>(a->x, b->x);
+    const double maxX = std::max<double>(a->x, b->x);
+    const double minY = std::min<double>(a->y, b->y);
+    const double maxY = std::max<double>(a->y, b->y);
+
     const Node* p = a;
     do {
-        if (p->i != a->i && p->next->i != a->i && p->i != b->i && p->next->i != b->i && intersects(p, p->next, a, b))
-            return true;
-        p = p->next;
+        const Node* n = p->next;
+        if ((p->x > maxX && n->x > maxX) || (p->x < minX && n->x < minX) || (p->y > maxY && n->y > maxY) ||
+            (p->y < minY && n->y < minY)) {
+            p = n;
+            continue;
+        }
+        if (p->i != a->i && n->i != a->i && p->i != b->i && n->i != b->i && intersects(p, n, a, b)) return true;
+        p = n;
     } while (p != a);
 
     return false;
@@ -826,10 +857,9 @@ bool Earcut<N>::middleInside(const Node* a, const Node* b) {
     double px = (a->x + b->x) / 2;
     double py = (a->y + b->y) / 2;
     do {
-        if (((p->y > py) != (p->next->y > py)) && p->next->y != p->y &&
-            (px < (p->next->x - p->x) * (py - p->y) / (p->next->y - p->y) + p->x))
-            inside = !inside;
-        p = p->next;
+        const Node* n = p->next;
+        if (((p->y > py) != (n->y > py)) && (px < (n->x - p->x) * (py - p->y) / (n->y - p->y) + p->x)) inside = !inside;
+        p = n;
     } while (p != a);
 
     return inside;
