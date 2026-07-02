@@ -61,16 +61,8 @@ source_group(comparison FILES ${COMPARISON_SOURCE_FILES})
 add_library(comparison INTERFACE)
 
 
-file(GLOB LIBTESS2_SOURCE_FILES test/comparison/libtess2/*.c test/comparison/libtess2/*.h)
-source_group(comparison/libtess2 FILES ${LIBTESS2_SOURCE_FILES})
-add_library(libtess2 ${LIBTESS2_SOURCE_FILES})
-target_compile_options(libtess2 PRIVATE
-    $<$<CXX_COMPILER_ID:MSVC>:/wd4244 /wd4267>
-    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w>
-)
-
 add_library(common INTERFACE)
-target_link_libraries(common INTERFACE libtess2 comparison)
+target_link_libraries(common INTERFACE comparison)
 
 # optional: -march=native (builds with the optimizations available on the build machine (only for local use!))
 target_compile_options(common INTERFACE
@@ -132,8 +124,25 @@ if (EARCUT_BUILD_BENCH)
         GIT_SHALLOW TRUE)
     FetchContent_MakeAvailable(benchmark)
 
+    # libtess2: fetched download-only (no upstream CMake, so MakeAvailable just populates) and built
+    # here as a static lib linked into the benchmark alone — purely a performance comparison point
+    # (A4). It provides no correctness coverage, so tests/viz never see it.
+    FetchContent_Declare(libtess2
+        GIT_REPOSITORY https://github.com/memononen/libtess2.git
+        GIT_TAG v1.0.2
+        GIT_SHALLOW TRUE)
+    FetchContent_MakeAvailable(libtess2)
+
+    file(GLOB LIBTESS2_SOURCE_FILES ${libtess2_SOURCE_DIR}/Source/*.c)
+    add_library(libtess2 STATIC ${LIBTESS2_SOURCE_FILES})
+    target_include_directories(libtess2 PUBLIC ${libtess2_SOURCE_DIR}/Include)
+    target_compile_options(libtess2 PRIVATE
+        $<$<CXX_COMPILER_ID:MSVC>:/wd4244 /wd4267>
+        $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w>
+    )
+
     add_executable(bench test/bench.cpp $<TARGET_OBJECTS:fixtures>)
-    target_link_libraries(bench PRIVATE earcut_hpp common benchmark::benchmark)
+    target_link_libraries(bench PRIVATE earcut_hpp common benchmark::benchmark libtess2)
 endif()
 if (EARCUT_BUILD_VIZ)
     add_executable(viz test/viz.cpp $<TARGET_OBJECTS:fixtures>)
@@ -151,6 +160,9 @@ if (EARCUT_BUILD_VIZ)
         set(GLFW_BUILD_TESTS OFF CACHE BOOL "Build the GLFW test programs" FORCE)
         set(GLFW_BUILD_DOCS OFF CACHE BOOL "Build the GLFW documentation" FORCE)
         set(GLFW_INSTALL OFF CACHE BOOL "Generate installation target" FORCE)
+        # GLFW 3.4 builds X11 + Wayland by default; the viz only needs one backend, so skip
+        # Wayland to avoid the wayland-scanner/protocol build dependency (X11 via xorg-dev suffices).
+        set(GLFW_BUILD_WAYLAND OFF CACHE BOOL "Build support for Wayland" FORCE)
         FetchContent_Declare(glfw
             GIT_REPOSITORY https://github.com/glfw/glfw.git
             GIT_TAG 3.4

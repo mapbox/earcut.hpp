@@ -3,7 +3,7 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 #endif
-#include "libtess2/tesselator.h"
+#include <tesselator.h>
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif

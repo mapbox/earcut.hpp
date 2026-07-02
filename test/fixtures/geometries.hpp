@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "../comparison/earcut.hpp"
-#include "../comparison/libtess2.hpp"
 
 namespace mapbox {
 namespace fixtures {
@@ -36,8 +35,7 @@ public:
           expectedTriangles(triangles),
           expectedEarcutDeviation(deviation),
           poly_(std::move(poly)),
-          earcutTesselator_(poly_),
-          libtessTesselator_(poly_) {}
+          earcutTesselator_(poly_) {}
 
     FixtureTester(const FixtureTester&) = delete;
     FixtureTester& operator=(const FixtureTester&) = delete;
@@ -45,10 +43,6 @@ public:
     TesselatorResult earcut() {
         earcutTesselator_.run();
         return {earcutTesselator_.vertices(), earcutTesselator_.indices()};
-    }
-    TesselatorResult libtess() {
-        libtessTesselator_.run();
-        return {libtessTesselator_.vertices(), libtessTesselator_.indices()};
     }
     DoublePolygon const& polygon() const { return poly_; }
 
@@ -62,7 +56,6 @@ public:
 private:
     DoublePolygon poly_;
     EarcutTesselator<double, DoublePolygon> earcutTesselator_;
-    Libtess2Tesselator<double, DoublePolygon> libtessTesselator_;
 };
 
 } // namespace fixtures

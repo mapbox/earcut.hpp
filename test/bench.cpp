@@ -3,6 +3,7 @@
 #include <set>
 #include <vector>
 
+#include "comparison/libtess2.hpp"
 #include "fixtures/geometries.hpp"
 
 // Get benchmark fixtures - only those in the whitelist for performance reasons
@@ -42,14 +43,16 @@ static void BM_EarcutTriangulation(benchmark::State& state) {
     state.SetLabel(fixture->name);
 }
 
-// Benchmark libtess2 triangulation
+// Benchmark libtess2 triangulation (comparison point only; built locally so libtess stays a
+// benchmark-only dependency — see A4).
 static void BM_LibtessTriangulation(benchmark::State& state) {
     auto fixtures = getBenchmarkFixtures();
     auto fixture = fixtures[static_cast<size_t>(state.range(0))];
 
+    Libtess2Tesselator<double, mapbox::fixtures::DoublePolygon> tesselator(fixture->polygon());
     for (auto _ : state) {
-        auto result = fixture->libtess();
-        benchmark::DoNotOptimize(result);
+        tesselator.run();
+        benchmark::DoNotOptimize(tesselator.indices().data());
     }
     state.SetLabel(fixture->name);
 }

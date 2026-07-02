@@ -1,5 +1,4 @@
 #include "comparison/earcut.hpp"
-#include "comparison/libtess2.hpp"
 #include "fixtures/geometries.hpp"
 
 #if _MSC_VER >= 1900
@@ -169,13 +168,6 @@ public:
     const char* name() override { return "earcut"; };
 };
 
-class DrawableLibtess : public DrawableTesselator {
-public:
-    explicit DrawableLibtess(mapbox::fixtures::FixtureTester* fixture)
-        : DrawableTesselator(fixture->libtess(), fixture->polygon()) {}
-    const char* name() override { return "libtess2"; };
-};
-
 class DrawableScanLineFill : public DrawablePolygon {
     struct Edge {
         float yMin;
@@ -319,14 +311,12 @@ std::unique_ptr<DrawablePolygon> DrawablePolygon::makeDrawable(std::size_t index
                                                                mapbox::fixtures::FixtureTester* fixture) {
     if (index == 0) {
         return std::unique_ptr<DrawablePolygon>(new DrawableEarcut(fixture));
-    } else if (index == 1) {
-        return std::unique_ptr<DrawablePolygon>(new DrawableLibtess(fixture));
     } else {
         return std::unique_ptr<DrawablePolygon>(new DrawableScanLineFill(fixture));
     }
 }
 
-static std::array<std::unique_ptr<DrawablePolygon>, 3> tessellators;
+static std::array<std::unique_ptr<DrawablePolygon>, 2> tessellators;
 
 mapbox::fixtures::FixtureTester* getFixture(std::size_t i) {
     auto& fixtures = mapbox::fixtures::FixtureTester::collection();
