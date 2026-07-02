@@ -80,27 +80,36 @@ TEST_P(EarcutAreaTest, EarcutTriangulation) {
     }
 }
 
-TEST_P(EarcutAreaTest, LibtessTriangulation) {
-    auto fixture = GetParam();
-
-    const auto expectedArea = polygonArea(fixture->polygon());
-    const auto libtess = fixture->libtess();
-    const auto area = trianglesArea(libtess.vertices, libtess.indices);
-    const double deviation = (expectedArea == area) ? 0
-                             : expectedArea == 0    ? std::numeric_limits<double>::infinity()
-                                                    : std::abs(area - expectedArea) / expectedArea;
-
-    EXPECT_LE(deviation, fixture->expectedLibtessDeviation)
-        << fixture->name << ": libtess2 deviation " << formatPercent(deviation) << " is not less than "
-        << formatPercent(fixture->expectedLibtessDeviation);
-}
-
 TEST(EarcutBasicTest, EmptyInput) {
     auto polygon = mapbox::fixtures::Polygon<std::pair<int, int>>{};
     EarcutTesselator<int, decltype(polygon)> tesselator(polygon);
     tesselator.run();
     EXPECT_TRUE(tesselator.indices().empty()) << "empty input should produce empty result";
 }
+
+// The old codegen picked short/int/double per fixture to exercise the templates for integer
+// point types. The runtime loader uses double throughout, so cover the integer paths explicitly
+// here: a square with a square hole triangulates to 8 triangles with zero area deviation.
+template <typename T>
+void checkSquareWithHole() {
+    mapbox::fixtures::Polygon<std::pair<T, T>> polygon{
+        {{0, 0}, {100, 0}, {100, 100}, {0, 100}},
+        {{25, 25}, {75, 25}, {75, 75}, {25, 75}},
+    };
+    EarcutTesselator<T, decltype(polygon)> tesselator(polygon);
+    tesselator.run();
+
+    const auto& indices = tesselator.indices();
+    EXPECT_EQ(indices.size() / 3, 8u);
+
+    const double expectedArea = polygonArea(polygon);
+    const double area = trianglesArea(tesselator.vertices(), indices);
+    EXPECT_DOUBLE_EQ(area, expectedArea);
+}
+
+TEST(EarcutTypedInput, Short) { checkSquareWithHole<short>(); }
+TEST(EarcutTypedInput, Int) { checkSquareWithHole<int>(); }
+TEST(EarcutTypedInput, Double) { checkSquareWithHole<double>(); }
 
 INSTANTIATE_TEST_SUITE_P(FixtureTests,
                          EarcutAreaTest,

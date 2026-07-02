@@ -28,14 +28,31 @@ target_include_directories(earcut_hpp INTERFACE
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-file(GLOB FIXTURE_SOURCE_FILES test/fixtures/*.cpp test/fixtures/*.hpp)
-source_group(fixtures FILES ${FIXTURE_SOURCE_FILES})
-add_library(fixtures OBJECT ${FIXTURE_SOURCE_FILES})
+# Fixtures and their expectations are read at runtime from the mapbox/earcut JS repo,
+# fetched here and pinned by tag (kept in lockstep with the port — bump on version updates).
+FetchContent_Declare(earcut_js
+    GIT_REPOSITORY https://github.com/mapbox/earcut.git
+    GIT_TAG v2.2.4
+    GIT_SHALLOW TRUE)
+FetchContent_MakeAvailable(earcut_js)
+
+# picojson: lightweight single-header JSON parser for reading the fixtures at runtime.
+FetchContent_Declare(picojson
+    GIT_REPOSITORY https://github.com/kazuho/picojson.git
+    GIT_TAG v1.3.0
+    GIT_SHALLOW TRUE)
+FetchContent_MakeAvailable(picojson)
+
+add_library(fixtures OBJECT test/fixtures/geometries.cpp test/fixtures/geometries.hpp)
 target_compile_options(fixtures PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:/Od>
     $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-ffp-contract=off>
 )
 target_link_libraries(fixtures PUBLIC earcut_hpp)
+target_include_directories(fixtures PRIVATE ${picojson_SOURCE_DIR})
+target_compile_definitions(fixtures PRIVATE
+    EARCUT_FIXTURE_DIR="${earcut_js_SOURCE_DIR}/test/fixtures"
+    EARCUT_EXPECTED_JSON="${earcut_js_SOURCE_DIR}/test/expected.json")
 
 
 file(GLOB COMPARISON_SOURCE_FILES test/comparison/*.cpp test/comparison/*.hpp)
