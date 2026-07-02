@@ -4,7 +4,7 @@
 #include <memory>
 #include <vector>
 
-template <typename Coord, typename Polygon>
+template <typename Coord, typename Polygon, typename EarcutCoord = void>
 class EarcutTesselator {
 public:
     using Vertex = std::array<Coord, 2>;
@@ -20,7 +20,10 @@ public:
 
     EarcutTesselator& operator=(const EarcutTesselator&) = delete;
 
-    void run() { indices_ = mapbox::earcut(polygon); }
+    void run() {
+        indices_ = mapbox::earcut<uint32_t, Polygon,
+            typename std::conditional<std::is_same<EarcutCoord, void>::value, void, EarcutCoord>::type>(polygon);
+    }
 
     std::vector<uint32_t> const& indices() const { return indices_; }
 

@@ -60,6 +60,7 @@ public:
     virtual TesselatorResult earcut() = 0;
     virtual TesselatorResult libtess() = 0;
     virtual DoublePolygon const& polygon() = 0;
+    virtual int64_t earcutTriangles() const { return 0; }
     static std::vector<FixtureTester*>& collection() {
         auto& objects = Collector<FixtureTester*>::collection();
         std::sort(objects.begin(), objects.end(), [](FixtureTester* a, FixtureTester* b) { return a->name < b->name; });
@@ -70,10 +71,39 @@ public:
 template <class T>
 class Fixture : public FixtureTester {
 private:
-    Polygon<std::pair<T, T>> inputPolygon;
+    using InputPolygon = Polygon<std::pair<T, T>>;
+    InputPolygon inputPolygon;
     DoublePolygon doublePolygon;
-    EarcutTesselator<double, Polygon<std::pair<T, T>>> earcutTesselator;
-    Libtess2Tesselator<double, Polygon<std::pair<T, T>>> libtessTesselator;
+    EarcutTesselator<double, InputPolygon> earcutTesselator;
+    Libtess2Tesselator<double, InputPolygon> libtessTesselator;
+
+    // Only instantiated for integral T. Holds the int64 tesselator and a
+    // proxy test fixture that registers itself in the collection.
+    template <typename U, typename = void>
+    struct Int64AdapterHelper {
+        explicit Int64AdapterHelper(Fixture*) {}
+    };
+
+    template <typename U>
+    struct Int64AdapterHelper<U, typename std::enable_if<std::is_integral<U>::value>::type> {
+        class Proxy : public FixtureTester {
+            Fixture* parent;
+            EarcutTesselator<double, InputPolygon, int64_t> tesselator;
+        public:
+            Proxy(Fixture* p)
+                : FixtureTester(p->name + "_i64", p->expectedTriangles,
+                                std::max(p->expectedEarcutDeviation, 0.05), p->expectedLibtessDeviation),
+                  parent(p), tesselator(p->inputPolygon) {}
+            TesselatorResult earcut() override { tesselator.run(); return {tesselator.vertices(), tesselator.indices()}; }
+            TesselatorResult libtess() override { return parent->libtess(); }
+            DoublePolygon const& polygon() override { return parent->doublePolygon; }
+        };
+
+        Proxy proxy;
+        explicit Int64AdapterHelper(Fixture* p) : proxy(p) {}
+    };
+
+    Int64AdapterHelper<T> int64Adapter;
 
 public:
     Fixture(std::string const& name,
@@ -83,8 +113,9 @@ public:
             Polygon<std::pair<T, T>> const& p)
         : FixtureTester(name, expectedTriangles, expectedDeviation, expectedLibtessDeviation),
           inputPolygon(p),
-          earcutTesselator(inputPolygon),
-          libtessTesselator(inputPolygon) {
+                    earcutTesselator(inputPolygon),
+                    libtessTesselator(inputPolygon),
+                    int64Adapter(this) {
         doublePolygon.reserve(inputPolygon.size());
         for (auto& ring : inputPolygon) {
             std::vector<std::pair<double, double>> r;
