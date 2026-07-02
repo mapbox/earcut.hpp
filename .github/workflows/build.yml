@@ -40,15 +40,22 @@ jobs:
           git --version
 
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Install toolchain
         run: |
-          apt-get install -y cmake ninja-build clang g++
-          clang --version
-          g++ --version
+          apt-get install -y cmake ninja-build ${{ matrix.cpp_compiler == 'clang++' && 'clang' || 'g++' }}
+          ${{ matrix.cpp_compiler }} --version
           cmake --version
           ninja --version
+
+      # FetchContent clones googletest/benchmark/glfw/libtess2 + the earcut fixtures repo at
+      # configure time; cache the populated _deps so reruns skip the clones.
+      - name: Cache FetchContent deps
+        uses: actions/cache@v6
+        with:
+          path: build/_deps
+          key: deps-${{ matrix.os }}-${{ matrix.cpp_compiler }}-${{ hashFiles('CMakeLists.txt') }}
 
       - name: Configure CMake
         run: cmake -B build -GNinja
@@ -69,13 +76,19 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Install CMake & Ninja
         run: |
           brew install cmake ninja
           cmake --version
           ninja --version
+
+      - name: Cache FetchContent deps
+        uses: actions/cache@v6
+        with:
+          path: build/_deps
+          key: deps-macos-15-${{ hashFiles('CMakeLists.txt') }}
 
       - name: Configure CMake
         run: cmake -B build -GNinja
@@ -107,7 +120,7 @@ jobs:
           git --version
 
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Install toolchain
         run: |
@@ -115,6 +128,12 @@ jobs:
           clang++ --version
           cmake --version
           ninja --version
+
+      - name: Cache FetchContent deps
+        uses: actions/cache@v6
+        with:
+          path: build/_deps
+          key: deps-sanitizers-${{ hashFiles('CMakeLists.txt') }}
 
       - name: Configure CMake with sanitizers
         run: >
@@ -151,7 +170,7 @@ jobs:
           git --version
 
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Install toolchain
         run: |
@@ -160,6 +179,12 @@ jobs:
           cmake --version
           ninja --version
           lcov --version
+
+      - name: Cache FetchContent deps
+        uses: actions/cache@v6
+        with:
+          path: build/_deps
+          key: deps-coverage-${{ hashFiles('CMakeLists.txt') }}
 
       - name: Configure CMake for coverage
         run: cmake -B build -GNinja -DEARCUT_BUILD_BENCH=OFF -DCMAKE_CXX_FLAGS="--coverage" -DCMAKE_BUILD_TYPE=Debug
@@ -170,25 +195,19 @@ jobs:
       - name: Run tests
         run: build/tests
 
-      - name: Generate coverage report
+      - name: Generate coverage summary
         run: |
           mkdir -p coverage
 
-          # Capture coverage, keeping only our shipping header (drop system, deps, tests, build)
+          # Capture coverage, then keep only our shipping header. Note the extract pattern must be
+          # '*/include/mapbox/*' and not '*/include/*' — the latter also matches /usr/include and the
+          # fetched deps' headers, which tanks the reported total (gtest etc. dominate the line count).
           lcov --capture --directory build --output-file coverage/coverage_raw.info \
             --ignore-errors gcov,source,mismatch --gcov-tool gcov
-          lcov --extract coverage/coverage_raw.info '*/include/*' --output-file coverage/coverage.info \
+          lcov --extract coverage/coverage_raw.info '*/include/mapbox/*' --output-file coverage/coverage.info \
             --ignore-errors unused
 
-          genhtml coverage/coverage.info --output-directory coverage/html \
-            --title "Earcut.hpp Coverage Report" --legend --ignore-errors source
           lcov --summary coverage/coverage.info
-
-      - name: Upload coverage reports as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage/
 
   Format:
     runs-on: ubuntu-latest
@@ -198,7 +217,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Install clang-format
         run: |
@@ -209,21 +228,12 @@ jobs:
       - name: Check code formatting
         run: find include test -name "*.hpp" -o -name "*.cpp" | xargs clang-format --dry-run --Werror
 
-      - name: Generate formatting patch
+      - name: Show formatting diff
         if: failure()
         run: |
           find include test -name "*.hpp" -o -name "*.cpp" | xargs clang-format -i
-          git diff > formatting.patch
-          echo "=== Formatting issues found ==="
-          cat formatting.patch
-          git checkout .
-
-      - name: Upload formatting patch
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: formatting-patch
-          path: formatting.patch
+          echo "=== Run clang-format -i to fix ==="
+          git diff
 
   # Keep the visualizer (off by default, needs OpenGL/GLFW) compiling so it doesn't rot.
   Viz:
@@ -247,10 +257,16 @@ jobs:
           git --version
 
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Install toolchain
         run: apt-get install -y cmake ninja-build g++ xorg-dev libgl1-mesa-dev
+
+      - name: Cache FetchContent deps
+        uses: actions/cache@v6
+        with:
+          path: build/_deps
+          key: deps-viz-${{ hashFiles('CMakeLists.txt') }}
 
       - name: Configure CMake
         run: cmake -B build -GNinja -DEARCUT_BUILD_TESTS=OFF -DEARCUT_BUILD_BENCH=OFF -DEARCUT_BUILD_VIZ=ON
