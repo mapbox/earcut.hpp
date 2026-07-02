@@ -2,6 +2,9 @@ name: Build and test project
 
 on:
   push:
+    branches:
+      - master
+  pull_request:
 
 jobs:
   Linux:
@@ -27,10 +30,10 @@ jobs:
 
     permissions:
       contents: read
-      id-token: write
 
     steps:
-      - name: Update Git
+      # git is needed both for actions/checkout and for CMake FetchContent (clones deps at configure time)
+      - name: Install Git
         run: |
           apt-get update
           apt-get install -y git
@@ -38,119 +41,50 @@ jobs:
 
       - name: Checkout repository
         uses: actions/checkout@v5
-        with:
-          submodules: true
 
-      - name: Install Compiler
+      - name: Install toolchain
         run: |
-          apt-get install -y cmake ninja-build clang g++ xorg-dev
+          apt-get install -y cmake ninja-build clang g++
           clang --version
           g++ --version
           cmake --version
           ninja --version
 
-      - name: Create build directory
-        run: mkdir -p build
-        shell: bash
-
       - name: Configure CMake
-        working-directory: build
-        run: cmake .. -GNinja
+        run: cmake -B build -GNinja
 
       - name: Build all targets
-        working-directory: build
-        run: ninja
+        run: cmake --build build
 
       - name: Run tests
         run: build/tests
 
-  Coverage:
-    runs-on: ubuntu-latest
-
-    container:
-      image: ubuntu:24.04
-
-    env:
-      CXX: g++
-      DEBIAN_FRONTEND: noninteractive
+  # arm64 + AppleClang coverage (x86_64 is covered by the Linux runners); macOS FP codegen
+  # matters here because of the cross-arch determinism issues #97/#103.
+  MacOS:
+    runs-on: macos-15
 
     permissions:
       contents: read
-      id-token: write
 
     steps:
-      - name: Update Git
-        run: |
-          apt-get update
-          apt-get install -y git
-          git --version
-
       - name: Checkout repository
         uses: actions/checkout@v5
-        with:
-          submodules: true
 
-      - name: Install dependencies
+      - name: Install CMake & Ninja
         run: |
-          apt-get install -y cmake ninja-build g++ xorg-dev lcov gnupg
-          g++ --version
+          brew install cmake ninja
           cmake --version
           ninja --version
-          lcov --version
 
-      - name: Create build directory
-        run: mkdir -p build
-        shell: bash
-
-      - name: Configure CMake for coverage
-        working-directory: build
-        run: cmake .. -GNinja -DCMAKE_CXX_FLAGS="--coverage" -DCMAKE_BUILD_TYPE=Debug
+      - name: Configure CMake
+        run: cmake -B build -GNinja
 
       - name: Build all targets
-        working-directory: build
-        run: ninja
+        run: cmake --build build
 
       - name: Run tests
         run: build/tests
-
-      - name: Generate coverage report
-        run: |
-          # Create coverage directory
-          mkdir -p coverage
-
-          # Capture coverage data with error suppression for template-heavy code
-          lcov --capture --directory build --output-file coverage/coverage_raw.info \
-            --ignore-errors gcov,source,mismatch --gcov-tool gcov
-
-          # Remove system headers, vendor files, and test files from coverage
-          lcov --remove coverage/coverage_raw.info '/usr/*' --output-file coverage/coverage.info \
-            --ignore-errors unused
-          lcov --remove coverage/coverage.info '*/vendor/*' --output-file coverage/coverage.info \
-            --ignore-errors unused
-          lcov --remove coverage/coverage.info '*/test/*' --output-file coverage/coverage.info \
-            --ignore-errors unused
-          lcov --remove coverage/coverage.info '*/build/*' --output-file coverage/coverage.info \
-            --ignore-errors unused
-          lcov --remove coverage/coverage.info '*/CMakeFiles/*' --output-file coverage/coverage.info \
-            --ignore-errors unused
-
-          # Only include our main header files
-          lcov --extract coverage/coverage.info '*/include/*' --output-file coverage/coverage.info \
-            --ignore-errors unused
-
-          # Generate HTML report
-          genhtml coverage/coverage.info --output-directory coverage/html \
-            --title "Earcut.hpp Coverage Report" --legend \
-            --ignore-errors source
-
-          # Show summary
-          lcov --summary coverage/coverage.info
-
-      - name: Upload coverage reports as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage/
 
   Sanitizers:
     runs-on: ubuntu-latest
@@ -164,10 +98,9 @@ jobs:
 
     permissions:
       contents: read
-      id-token: write
 
     steps:
-      - name: Update Git
+      - name: Install Git
         run: |
           apt-get update
           apt-get install -y git
@@ -175,33 +108,87 @@ jobs:
 
       - name: Checkout repository
         uses: actions/checkout@v5
-        with:
-          submodules: true
 
-      - name: Install dependencies
+      - name: Install toolchain
         run: |
-          apt-get install -y cmake ninja-build clang xorg-dev
+          apt-get install -y cmake ninja-build clang
           clang++ --version
           cmake --version
           ninja --version
 
-      - name: Create build directory
-        run: mkdir -p build
-        shell: bash
-
       - name: Configure CMake with sanitizers
-        working-directory: build
-        run: cmake .. -GNinja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g"
+        run: >
+          cmake -B build -GNinja -DEARCUT_BUILD_BENCH=OFF -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g"
 
-      - name: Build all targets
-        working-directory: build
-        run: ninja
+      - name: Build tests
+        run: cmake --build build --target tests
 
       - name: Run tests with sanitizers
         run: build/tests
         env:
           ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
           UBSAN_OPTIONS: halt_on_error=1:abort_on_error=1
+
+  Coverage:
+    runs-on: ubuntu-latest
+
+    container:
+      image: ubuntu:24.04
+
+    env:
+      CXX: g++
+      DEBIAN_FRONTEND: noninteractive
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Install Git
+        run: |
+          apt-get update
+          apt-get install -y git
+          git --version
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install toolchain
+        run: |
+          apt-get install -y cmake ninja-build g++ lcov
+          g++ --version
+          cmake --version
+          ninja --version
+          lcov --version
+
+      - name: Configure CMake for coverage
+        run: cmake -B build -GNinja -DEARCUT_BUILD_BENCH=OFF -DCMAKE_CXX_FLAGS="--coverage" -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build tests
+        run: cmake --build build --target tests
+
+      - name: Run tests
+        run: build/tests
+
+      - name: Generate coverage report
+        run: |
+          mkdir -p coverage
+
+          # Capture coverage, keeping only our shipping header (drop system, deps, tests, build)
+          lcov --capture --directory build --output-file coverage/coverage_raw.info \
+            --ignore-errors gcov,source,mismatch --gcov-tool gcov
+          lcov --extract coverage/coverage_raw.info '*/include/*' --output-file coverage/coverage.info \
+            --ignore-errors unused
+
+          genhtml coverage/coverage.info --output-directory coverage/html \
+            --title "Earcut.hpp Coverage Report" --legend --ignore-errors source
+          lcov --summary coverage/coverage.info
+
+      - name: Upload coverage reports as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
 
   Format:
     runs-on: ubuntu-latest
@@ -220,22 +207,15 @@ jobs:
           clang-format --version
 
       - name: Check code formatting
-        run: |
-          # Find all C++ files and check formatting
-          find include test -name "*.hpp" -o -name "*.cpp" | xargs clang-format --dry-run --Werror
+        run: find include test -name "*.hpp" -o -name "*.cpp" | xargs clang-format --dry-run --Werror
 
       - name: Generate formatting patch
         if: failure()
         run: |
-          # Create patch with correct formatting
           find include test -name "*.hpp" -o -name "*.cpp" | xargs clang-format -i
           git diff > formatting.patch
-
-          # Show the patch content
           echo "=== Formatting issues found ==="
           cat formatting.patch
-
-          # Reset changes
           git checkout .
 
       - name: Upload formatting patch
@@ -245,43 +225,35 @@ jobs:
           name: formatting-patch
           path: formatting.patch
 
-  MacOS:
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - "macos-13"
-          - "macos-14"
+  # Keep the visualizer (off by default, needs OpenGL/GLFW) compiling so it doesn't rot.
+  Viz:
+    runs-on: ubuntu-latest
 
-    runs-on: ${{ matrix.os }}
+    container:
+      image: ubuntu:24.04
+
+    env:
+      CXX: g++
+      DEBIAN_FRONTEND: noninteractive
 
     permissions:
       contents: read
-      id-token: write
 
     steps:
+      - name: Install Git
+        run: |
+          apt-get update
+          apt-get install -y git
+          git --version
+
       - name: Checkout repository
         uses: actions/checkout@v5
-        with:
-          submodules: true
 
-      - name: Install CMake & Ninja
-        run: |
-          brew install cmake ninja
-          cmake --version
-          ninja --version
-
-      - name: Create build directory
-        run: mkdir -p build
-        shell: bash
+      - name: Install toolchain
+        run: apt-get install -y cmake ninja-build g++ xorg-dev libgl1-mesa-dev
 
       - name: Configure CMake
-        working-directory: build
-        run: cmake .. -GNinja
+        run: cmake -B build -GNinja -DEARCUT_BUILD_TESTS=OFF -DEARCUT_BUILD_BENCH=OFF -DEARCUT_BUILD_VIZ=ON
 
-      - name: Build all targets
-        working-directory: build
-        run: ninja
-
-      - name: Run tests
-        run: build/tests
+      - name: Build viz
+        run: cmake --build build --target viz

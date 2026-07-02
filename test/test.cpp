@@ -107,9 +107,15 @@ void checkSquareWithHole() {
     EXPECT_DOUBLE_EQ(area, expectedArea);
 }
 
-TEST(EarcutTypedInput, Short) { checkSquareWithHole<short>(); }
-TEST(EarcutTypedInput, Int) { checkSquareWithHole<int>(); }
-TEST(EarcutTypedInput, Double) { checkSquareWithHole<double>(); }
+TEST(EarcutTypedInput, Short) {
+    checkSquareWithHole<short>();
+}
+TEST(EarcutTypedInput, Int) {
+    checkSquareWithHole<int>();
+}
+TEST(EarcutTypedInput, Double) {
+    checkSquareWithHole<double>();
+}
 
 INSTANTIATE_TEST_SUITE_P(FixtureTests,
                          EarcutAreaTest,

@@ -75,8 +75,7 @@ std::vector<std::unique_ptr<FixtureTester>> loadFixtures() {
         // JS bakes a 1e-14 epsilon into the recorded deviation; match it.
         const double deviation = (errorIt != errors.end() ? errorIt->second : 0.0) + 1e-14;
 
-        fixtures.push_back(
-            std::make_unique<FixtureTester>(name, expectedTriangles, deviation, std::move(polygon)));
+        fixtures.push_back(std::make_unique<FixtureTester>(name, expectedTriangles, deviation, std::move(polygon)));
     }
     return fixtures;
 }
@@ -88,8 +87,7 @@ std::vector<FixtureTester*>& FixtureTester::collection() {
     static std::vector<FixtureTester*> pointers = [] {
         std::vector<FixtureTester*> result;
         for (const auto& fixture : owned) result.push_back(fixture.get());
-        std::sort(result.begin(), result.end(),
-                  [](FixtureTester* a, FixtureTester* b) { return a->name < b->name; });
+        std::sort(result.begin(), result.end(), [](FixtureTester* a, FixtureTester* b) { return a->name < b->name; });
         return result;
     }();
     return pointers;
