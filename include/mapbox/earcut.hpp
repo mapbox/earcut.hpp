@@ -104,9 +104,8 @@ private:
     bool isValidDiagonal(Node* a, Node* b);
     double area(const Node* p, const Node* q, const Node* r) const;
     bool equals(const Node* p1, const Node* p2);
-    bool intersects(const Node* p1, const Node* q1, const Node* p2, const Node* q2);
+    bool intersects(const Node* p1, const Node* q1, const Node* p2, const Node* q2, bool includeBoundary = true);
     bool onSegment(const Node* p, const Node* q, const Node* r);
-    int sign(double val);
     bool intersectsPolygon(const Node* a, const Node* b);
     bool locallyInside(const Node* a, const Node* b);
     bool middleInside(const Node* a, const Node* b);
@@ -229,7 +228,11 @@ void Earcut<N>::operator()(const Polygon& points) {
     Node* outerNode = linkedList(points[0], true);
     if (!outerNode || outerNode->prev == outerNode->next) return;
 
-    if (points.size() > 1) outerNode = eliminateHoles(points, outerNode);
+    if (points.size() > 1) {
+        outerNode = eliminateHoles(points, outerNode);
+        // collapse collinear/coincident points across the whole merged ring once before clipping
+        outerNode = filterPoints(outerNode);
+    }
 
     // if the shape is not too simple, we'll use z-order curve hash later; calculate polygon bbox
     hashing = threshold < 0;
@@ -296,25 +299,29 @@ typename Earcut<N>::Node* Earcut<N>::linkedList(const Ring& points, const bool c
     return last;
 }
 
-// eliminate colinear or duplicate points
+// Remove collinear or coincident points; removability depends only on a node's immediate
+// neighbors, so we sweep forward and re-check the predecessor after each removal. With no `end`
+// we sweep the whole ring, lapping until nothing is removable (the fixpoint the clipper needs).
+// With an explicit `end` we heal only the dirty window around a bridge/diagonal cut, stopping at
+// `end` rather than lapping — O(window) instead of O(ring).
 template <typename N>
 typename Earcut<N>::Node* Earcut<N>::filterPoints(Node* start, Node* end) {
-    if (!end) end = start;
+    if (!start) return start;
+    const bool full = !end;
+    if (full) end = start;
 
     Node* p = start;
     bool again;
     do {
         again = false;
-
-        if (!p->steiner && (equals(p, p->next) || area(p->prev, p, p->next) == 0)) {
+        if (p != p->next && !p->steiner && (equals(p, p->next) || area(p->prev, p, p->next) == 0)) {
+            if (full || p == end) end = p->prev; // pull the stop bound back past the removal
             removeNode(p);
-            p = end = p->prev;
-
-            if (p == p->next) break;
+            p = p->prev; // re-check the predecessor
             again = true;
-
-        } else {
+        } else if (full || p != end) {
             p = p->next;
+            again = !full; // local heal: keep looping until the sweep reaches end
         }
     } while (again || p != end);
 
@@ -346,9 +353,8 @@ void Earcut<N>::earcutLinked(Node* ear, int pass) {
 
             removeNode(ear);
 
-            // skipping the next vertice leads to less sliver triangles
-            ear = next->next;
-            stop = next->next;
+            ear = next;
+            stop = next;
 
             continue;
         }
@@ -443,12 +449,14 @@ bool Earcut<N>::isEarHashed(Node* ear) {
 template <typename N>
 typename Earcut<N>::Node* Earcut<N>::cureLocalIntersections(Node* start) {
     Node* p = start;
+    bool cured = false;
     do {
         Node* a = p->prev;
         Node* b = p->next->next;
 
-        // a self-intersection where edge (v[i-1],v[i]) intersects (v[i+1],v[i+2])
-        if (!equals(a, b) && intersects(a, p, p->next, b) && locallyInside(a, b) && locallyInside(b, a)) {
+        // a self-intersection where edge (v[i-1],v[i]) intersects (v[i+1],v[i+2]);
+        // includeBoundary=false so a mere collinear touch isn't treated as a crossing
+        if (intersects(a, p, p->next, b, false) && locallyInside(a, b) && locallyInside(b, a)) {
             indices.emplace_back(a->i);
             indices.emplace_back(p->i);
             indices.emplace_back(b->i);
@@ -458,11 +466,12 @@ typename Earcut<N>::Node* Earcut<N>::cureLocalIntersections(Node* start) {
             removeNode(p->next);
 
             p = start = b;
+            cured = true;
         }
         p = p->next;
     } while (p != start);
 
-    return filterPoints(p);
+    return cured ? filterPoints(p) : p;
 }
 
 // try splitting polygon into two and triangulate them independently
@@ -587,7 +596,9 @@ typename Earcut<N>::Node* Earcut<N>::findHoleBridge(Node* hole, Node* outerNode)
             pointInTriangle(hy < my ? hx : qx, hy, mx, my, hy < my ? qx : hx, hy, p->x, p->y)) {
             tanCur = std::abs(hy - p->y) / (hx - p->x); // tangential
 
-            if (locallyInside(p, hole) &&
+            // if hole point sits on p's horizontal edge (T-junction touch): the bridge runs
+            // along that edge — locallyInside rejects it as collinear, but it's valid
+            if ((locallyInside(p, hole) || (p->y == hy && p->next->y == hy && p->next->x > hx)) &&
                 (tanCur < tanMin ||
                  (tanCur == tanMin && (p->x > m->x || (p->x == m->x && sectorContainsSector(m, p)))))) {
                 m = p;
@@ -739,8 +750,8 @@ bool Earcut<N>::pointInTriangle(
 // check if a diagonal between two polygon nodes is valid (lies in polygon interior)
 template <typename N>
 bool Earcut<N>::isValidDiagonal(Node* a, Node* b) {
-    return a->next->i != b->i && a->prev->i != b->i && !intersectsPolygon(a, b) && // dones't intersect other edges
-           ((locallyInside(a, b) && locallyInside(b, a) && middleInside(a, b) &&   // locally visible
+    return a->next->i != b->i && !intersectsPolygon(a, b) &&                     // doesn't intersect other edges
+           ((locallyInside(a, b) && locallyInside(b, a) && middleInside(a, b) && // locally visible
              (area(a->prev, a, b->prev) != 0.0 ||
               area(a, b->prev, b) != 0.0)) || // does not create opposite-facing sectors
             (equals(a, b) && area(a->prev, a, a->next) > 0 &&
@@ -759,15 +770,18 @@ bool Earcut<N>::equals(const Node* p1, const Node* p2) {
     return p1->x == p2->x && p1->y == p2->y;
 }
 
-// check if two segments intersect
+// check if two segments intersect; by default includes collinear boundary touches
 template <typename N>
-bool Earcut<N>::intersects(const Node* p1, const Node* q1, const Node* p2, const Node* q2) {
-    int o1 = sign(area(p1, q1, p2));
-    int o2 = sign(area(p1, q1, q2));
-    int o3 = sign(area(p2, q2, p1));
-    int o4 = sign(area(p2, q2, q1));
+bool Earcut<N>::intersects(const Node* p1, const Node* q1, const Node* p2, const Node* q2, bool includeBoundary) {
+    const double o1 = area(p1, q1, p2);
+    const double o2 = area(p1, q1, q2);
+    const double o3 = area(p2, q2, p1);
+    const double o4 = area(p2, q2, q1);
 
-    if (o1 != o2 && o3 != o4) return true; // general case
+    // general case: the two segments straddle each other (proper crossing)
+    if (((o1 > 0 && o2 < 0) || (o1 < 0 && o2 > 0)) && ((o3 > 0 && o4 < 0) || (o3 < 0 && o4 > 0))) return true;
+
+    if (!includeBoundary) return false;
 
     if (o1 == 0 && onSegment(p1, p2, q1)) return true; // p1, q1 and p2 are collinear and p2 lies on p1q1
     if (o2 == 0 && onSegment(p1, q2, q1)) return true; // p1, q1 and q2 are collinear and q2 lies on p1q1
@@ -782,11 +796,6 @@ template <typename N>
 bool Earcut<N>::onSegment(const Node* p, const Node* q, const Node* r) {
     return q->x <= std::max<double>(p->x, r->x) && q->x >= std::min<double>(p->x, r->x) &&
            q->y <= std::max<double>(p->y, r->y) && q->y >= std::min<double>(p->y, r->y);
-}
-
-template <typename N>
-int Earcut<N>::sign(double val) {
-    return (0.0 < val) - (val < 0.0);
 }
 
 // check if a polygon diagonal intersects any polygon segments

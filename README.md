@@ -113,4 +113,4 @@ CMake can also generate IDE projects (Visual Studio, Xcode, etc.) — e.g.
 
 ## Status
 
-This is currently based on [earcut 3.0.2](https://github.com/mapbox/earcut/releases/tag/v3.0.2).
+This is currently based on [earcut 3.1.0](https://github.com/mapbox/earcut/releases/tag/v3.1.0).
