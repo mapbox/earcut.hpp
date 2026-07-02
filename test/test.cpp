@@ -3,9 +3,11 @@
 #include <algorithm>
 #include <iomanip>
 #include <locale>
+#include <mapbox/earcut.hpp>
 #include <sstream>
 
 #include "fixtures/geometries.hpp"
+#include "fixtures/mvt_fixture.hpp"
 
 template <typename Point>
 double triangleArea(const Point& a, const Point& b, const Point& c) {
@@ -115,6 +117,34 @@ TEST(EarcutTypedInput, Int) {
 }
 TEST(EarcutTypedInput, Double) {
     checkSquareWithHole<double>();
+}
+
+// The strongest correctness gate the project has: every MVT polygon must triangulate with area
+// deviation exactly 0 (see Step 10). Integer coords make the shoelace areas exact, so anything
+// above rounding noise means a dropped/duplicated triangle.
+TEST(EarcutTiles, ZeroDeviation) {
+    const auto& features = mapbox::fixtures::mvtFixture();
+    EXPECT_EQ(features.size(), 119680u) << "unexpected MVT polygon count";
+
+    std::vector<mapbox::fixtures::MvtPoint> verts;
+    std::size_t failures = 0;
+    double worst = 0;
+    for (const auto& f : features) {
+        verts.clear();
+        for (const auto& ring : f.polygon)
+            for (const auto& p : ring) verts.push_back(p);
+
+        const auto indices = mapbox::earcut<uint32_t>(f.polygon);
+        const double expectedArea = polygonArea(f.polygon);
+        if (expectedArea == 0) continue;
+        const double area = trianglesArea(verts, indices);
+        const double deviation = std::abs(area - expectedArea) / expectedArea;
+        if (deviation > 1e-9) {
+            ++failures;
+            worst = std::max(worst, deviation);
+        }
+    }
+    EXPECT_EQ(failures, 0u) << failures << " polygons exceed zero-deviation (worst " << formatPercent(worst) << ")";
 }
 
 INSTANTIATE_TEST_SUITE_P(FixtureTests,

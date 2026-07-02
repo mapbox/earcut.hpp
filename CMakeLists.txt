@@ -43,7 +43,9 @@ FetchContent_Declare(picojson
     GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(picojson)
 
-add_library(fixtures OBJECT test/fixtures/geometries.cpp test/fixtures/geometries.hpp)
+add_library(fixtures OBJECT
+    test/fixtures/geometries.cpp test/fixtures/geometries.hpp
+    test/fixtures/mvt_fixture.cpp test/fixtures/mvt_fixture.hpp)
 target_compile_options(fixtures PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:/Od>
     $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-ffp-contract=off>
@@ -52,7 +54,8 @@ target_link_libraries(fixtures PUBLIC earcut_hpp)
 target_include_directories(fixtures PRIVATE ${picojson_SOURCE_DIR})
 target_compile_definitions(fixtures PRIVATE
     EARCUT_FIXTURE_DIR="${earcut_js_SOURCE_DIR}/test/fixtures"
-    EARCUT_EXPECTED_JSON="${earcut_js_SOURCE_DIR}/test/expected.json")
+    EARCUT_EXPECTED_JSON="${earcut_js_SOURCE_DIR}/test/expected.json"
+    EARCUT_TILES_BIN="${earcut_js_SOURCE_DIR}/bench/tiles-fixture.bin")
 
 
 file(GLOB COMPARISON_SOURCE_FILES test/comparison/*.cpp test/comparison/*.hpp)
