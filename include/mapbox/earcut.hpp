@@ -34,7 +34,10 @@ public:
 
 private:
     struct Node {
-        Node(N index, double x_, double y_) : x(x_), y(y_), i(index), steiner(0) {}
+        // i is a (bits(N)-1)-wide field packed alongside the 1-bit steiner flag; mask index to that
+        // width so it fits without a narrowing warning (a no-op for any real vertex index).
+        Node(N index, double x_, double y_)
+            : x(x_), y(y_), i(index & ((N(1) << (sizeof(N) * 8 - 1)) - 1)), steiner(0) {}
         Node(const Node&) = delete;
         Node& operator=(const Node&) = delete;
         Node(Node&&) = delete;
