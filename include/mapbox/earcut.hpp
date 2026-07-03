@@ -109,6 +109,11 @@ private:
     Node* eliminateHoles(const Polygon& points, Node* outerNode);
     Node* eliminateHole(Node* hole, Node* outerNode);
     Node* findHoleBridge(Node* hole, Node* outerNode);
+    void buildBlockIndex(std::size_t maxNodes, std::size_t numHoles);
+    void indexSegment(Node* head, Node* stop);
+    void growBlock(Node* head, Node* tail);
+    Node* liveBlockHead(std::size_t b);
+    Node* liveBlockStop(std::size_t b);
     bool sectorContainsSector(const Node* m, const Node* p);
     void indexCurve(Node* start);
     Node* sortLinked(Node* list);
@@ -216,6 +221,24 @@ private:
     std::vector<Node*> holeQueue;
     // reused scratch buffer for sortLinked: materialize the z-linked ring, std::sort, relink
     std::vector<Node*> sortBuffer;
+
+    // Block-bbox index for findHoleBridge (issue #183): one [minX,minY,maxX,maxY] bbox per K
+    // consecutive ring edges, so the leftward-ray scan can skip whole blocks in O(1) instead of
+    // walking the whole merged ring. Grown append-only — the outer ring seeds it, then each merged
+    // hole appends a segment (head node, stop node, K-blocks over head..stop); independent segments,
+    // not a ring tiling, since splices land mid-ring. Buffers reused/grown across calls.
+    //
+    // filterPoints only drops collinear/coincident points, so a stale bbox stays a conservative
+    // superset of its live edges (never a false skip); the scan skips dead nodes (p->prev->next != p)
+    // and lazily advances a dead head/stop. Blocks are scanned in append (not ring) order, so the
+    // chosen bridge can differ from the un-indexed code — a different but equally valid result.
+    static constexpr int32_t K = 16; // edges per block
+    std::vector<double> blockBBox;   // [minX,minY,maxX,maxY] per block
+    std::vector<Node*> blockHead;    // first node of each block's segment
+    std::vector<Node*> blockStop;    // node just past each block's segment (exclusive walk bound)
+    std::size_t numBlocks = 0;
+    // true only while eliminateHoles merges holes, so removeNode keeps the block index live (growBlock)
+    bool indexActive = false;
 };
 
 template <typename N>
@@ -543,10 +566,18 @@ typename Earcut<N>::Node* Earcut<N>::eliminateHoles(const Polygon& points, Node*
         return aSlope < bSlope;
     });
 
-    // process holes from left to right
+    // block-bbox index for findHoleBridge, grown append-only as holes merge. Seed it with the
+    // outer ring, then append each merged hole.
+    buildBlockIndex(vertices, holeQueue.size());
+    indexSegment(outerNode, outerNode);
+
+    // process holes from left to right; indexActive lets removeNode keep block bboxes live as
+    // filterPoints heals edges during merges (see growBlock)
+    indexActive = true;
     for (size_t i = 0; i < holeQueue.size(); i++) {
         outerNode = eliminateHole(holeQueue[i], outerNode);
     }
+    indexActive = false;
 
     // collapse collinear/coincident points across the whole merged ring once before clipping
     return filterPoints(outerNode);
@@ -562,10 +593,15 @@ typename Earcut<N>::Node* Earcut<N>::eliminateHole(Node* hole, Node* outerNode) 
 
     Node* bridgeReverse = splitPolygon(bridge, hole);
 
-    // filter collinear points around the cuts
-    filterPoints(bridgeReverse, bridgeReverse->next);
+    // index the merged-in segment before filtering: in ring order the splice runs
+    // bridge -> hole -> bridgeReverse -> bridge2 -> (bridge's old next), covering the hole's edges
+    // and both new slit edges. filterPoints below only drops collinear/coincident points, so these
+    // bboxes stay valid (conservative) supersets.
+    Node* bridge2 = bridgeReverse->next;
+    indexSegment(bridge, bridge2->next);
 
-    // Check if input node was removed by the filtering
+    // heal collinear/coincident points around the two new slit edges
+    filterPoints(bridgeReverse, bridgeReverse->next);
     return filterPoints(bridge, bridge->next);
 }
 
@@ -582,19 +618,31 @@ typename Earcut<N>::Node* Earcut<N>::findHoleBridge(Node* hole, Node* outerNode)
     // segment's endpoint with lesser x will be potential connection Vertex,
     // unless they intersect at a vertex, then choose the vertex
     if (equals(hole, p)) return p;
-    do {
-        if (equals(hole, p->next))
-            return p->next;
-        else if (hy <= p->y && hy >= p->next->y && p->next->y != p->y) {
-            double x = p->x + (hy - p->y) * (p->next->x - p->x) / (p->next->y - p->y);
-            if (x <= hx && x > qx) {
-                qx = x;
-                m = p->x < p->next->x ? p : p->next;
-                if (x == hx) return m; // hole touches outer segment; pick leftmost endpoint
+
+    // scan blocks; skip any whose bbox can't hold a crossing that beats qx and lies left of hx
+    // (the prune Morton order can't express — explicit per-axis [minY,maxY]/[minX,maxX])
+    for (std::size_t b = 0, g = 0; b < numBlocks; b++, g += 4) {
+        if (hy < blockBBox[g + 1] || hy > blockBBox[g + 3] || blockBBox[g] > hx || blockBBox[g + 2] <= qx) continue;
+
+        // ensure the walk's exclusive bound is live so we don't overrun into other blocks
+        const Node* stop = liveBlockStop(b);
+        p = liveBlockHead(b);
+        do {
+            if (p->prev->next == p) { // skip nodes removed by filterPoints (stale in the index)
+                if (equals(hole, p->next))
+                    return p->next;
+                else if (hy <= p->y && hy >= p->next->y && p->next->y != p->y) {
+                    double x = p->x + (hy - p->y) * (p->next->x - p->x) / (p->next->y - p->y);
+                    if (x <= hx && x > qx) {
+                        qx = x;
+                        m = p->x < p->next->x ? p : p->next;
+                        if (x == hx) return m; // hole touches outer segment; pick leftmost endpoint
+                    }
+                }
             }
-        }
-        p = p->next;
-    } while (p != outerNode);
+            p = p->next;
+        } while (p != stop);
+    }
 
     if (!m) return 0;
 
@@ -602,33 +650,119 @@ typename Earcut<N>::Node* Earcut<N>::findHoleBridge(Node* hole, Node* outerNode)
     // if there are no points found, we have a valid connection;
     // otherwise choose the Vertex of the minimum angle with the ray as connection Vertex
 
-    const Node* stop = m;
+    const double mx = m->x;
+    const double my = m->y;
+    const double tminY = std::min<double>(hy, my); // the triangle's y span; x span is [mx, hx]
+    const double tmaxY = std::max<double>(hy, my);
     double tanMin = std::numeric_limits<double>::max();
-    double tanCur = 0;
 
-    p = m;
-    double mx = m->x;
-    double my = m->y;
+    // scan the same blocks; skip any whose bbox can't overlap the triangle's [mx,hx]x[tminY,tmaxY] box
+    for (std::size_t b = 0, g = 0; b < numBlocks; b++, g += 4) {
+        if (blockBBox[g + 2] < mx || blockBBox[g] > hx || blockBBox[g + 3] < tminY || blockBBox[g + 1] > tmaxY)
+            continue;
 
-    do {
-        if (hx >= p->x && p->x >= mx && hx != p->x &&
-            pointInTriangle(hy < my ? hx : qx, hy, mx, my, hy < my ? qx : hx, hy, p->x, p->y)) {
-            tanCur = std::abs(hy - p->y) / (hx - p->x); // tangential
+        const Node* stop = liveBlockStop(b);
+        p = liveBlockHead(b);
+        do {
+            if (p->prev->next == p && hx >= p->x && p->x >= mx && hx != p->x && // skip dead nodes
+                pointInTriangle(hy < my ? hx : qx, hy, mx, my, hy < my ? qx : hx, hy, p->x, p->y)) {
+                const double tanCur = std::abs(hy - p->y) / (hx - p->x); // tangential
 
-            // if hole point sits on p's horizontal edge (T-junction touch): the bridge runs
-            // along that edge — locallyInside rejects it as collinear, but it's valid
-            if ((locallyInside(p, hole) || (p->y == hy && p->next->y == hy && p->next->x > hx)) &&
-                (tanCur < tanMin ||
-                 (tanCur == tanMin && (p->x > m->x || (p->x == m->x && sectorContainsSector(m, p)))))) {
-                m = p;
-                tanMin = tanCur;
+                // if hole point sits on p's horizontal edge (T-junction touch): the bridge runs
+                // along that edge — locallyInside rejects it as collinear, but it's valid
+                if ((locallyInside(p, hole) || (p->y == hy && p->next->y == hy && p->next->x > hx)) &&
+                    (tanCur < tanMin ||
+                     (tanCur == tanMin && (p->x > m->x || (p->x == m->x && sectorContainsSector(m, p)))))) {
+                    m = p;
+                    tanMin = tanCur;
+                }
             }
-        }
-
-        p = p->next;
-    } while (p != stop);
+            p = p->next;
+        } while (p != stop);
+    }
 
     return m;
+}
+
+// Block-bbox index buffers: size once from the input upper bound and reuse across calls.
+template <typename N>
+void Earcut<N>::buildBlockIndex(std::size_t maxNodes, std::size_t numHoles) {
+    // upper bound: every input node indexed once, +2 bridge nodes per hole, plus a partial
+    // trailing block per appended segment (outer ring + one per hole)
+    const std::size_t maxBlocks = (maxNodes + 2 * numHoles + K - 1) / K + numHoles + 2;
+    if (blockBBox.size() < maxBlocks * 4) blockBBox.resize(maxBlocks * 4);
+    if (blockHead.size() < maxBlocks) {
+        blockHead.resize(maxBlocks);
+        blockStop.resize(maxBlocks);
+    }
+    numBlocks = 0;
+}
+
+// index the ring run head..stop (exclusive) as ceil(len / K) blocks; head == stop means the whole
+// ring. each block's bbox covers both endpoints of every edge it owns.
+template <typename N>
+void Earcut<N>::indexSegment(Node* head, Node* stop) {
+    Node* p = head;
+    do {
+        const std::size_t b = numBlocks++;
+        blockHead[b] = p;
+        double minX = std::numeric_limits<double>::max();
+        double minY = std::numeric_limits<double>::max();
+        double maxX = std::numeric_limits<double>::lowest();
+        double maxY = std::numeric_limits<double>::lowest();
+        int32_t k = 0;
+        do {
+            Node* c = p->next;              // edge p->c; bbox must bound both endpoints
+            p->z = static_cast<int32_t>(b); // reuse z as the owning block during eliminateHoles (see growBlock)
+            if (p->x < minX) minX = p->x;
+            if (p->x > maxX) maxX = p->x;
+            if (p->y < minY) minY = p->y;
+            if (p->y > maxY) maxY = p->y;
+            if (c->x < minX) minX = c->x;
+            if (c->x > maxX) maxX = c->x;
+            if (c->y < minY) minY = c->y;
+            if (c->y > maxY) maxY = c->y;
+            p = c;
+        } while (++k < K && p != stop);
+        blockStop[b] = p;
+        const std::size_t g = b * 4;
+        blockBBox[g] = minX;
+        blockBBox[g + 1] = minY;
+        blockBBox[g + 2] = maxX;
+        blockBBox[g + 3] = maxY;
+    } while (p != stop);
+}
+
+// when filterPoints heals an edge head->tail (removing the collinear node between them), the healed
+// edge can extend past head's frozen block bbox if its old far endpoint lived in another block; grow
+// head's block bbox to cover tail so the leftward-ray prune can't false-skip it.
+template <typename N>
+void Earcut<N>::growBlock(Node* head, Node* tail) {
+    const std::size_t g = static_cast<std::size_t>(head->z) * 4;
+    if (tail->x < blockBBox[g]) blockBBox[g] = tail->x;
+    if (tail->y < blockBBox[g + 1]) blockBBox[g + 1] = tail->y;
+    if (tail->x > blockBBox[g + 2]) blockBBox[g + 2] = tail->x;
+    if (tail->y > blockBBox[g + 3]) blockBBox[g + 3] = tail->y;
+}
+
+// the block's head node can be removed by filterPoints during merges; advance it to the next live
+// node so the walk doesn't start on (and immediately terminate at) a dead node. For the single
+// full-ring seed block (head == stop) the same forward advance keeps them equal, so the do-while
+// still laps the whole ring instead of collapsing to an empty walk.
+template <typename N>
+typename Earcut<N>::Node* Earcut<N>::liveBlockHead(std::size_t b) {
+    Node* head = blockHead[b];
+    while (head->prev->next != head) head = head->next;
+    blockHead[b] = head;
+    return head;
+}
+
+template <typename N>
+typename Earcut<N>::Node* Earcut<N>::liveBlockStop(std::size_t b) {
+    Node* stop = blockStop[b];
+    while (stop->prev->next != stop) stop = stop->next;
+    blockStop[b] = stop;
+    return stop;
 }
 
 // whether sector in vertex m contains sector in vertex p in the same coordinates
@@ -644,7 +778,8 @@ void Earcut<N>::indexCurve(Node* start) {
     Node* p = start;
 
     do {
-        p->z = p->z ? p->z : zOrder(p->x, p->y);
+        // always (re)compute: z may still hold a block index left over from eliminateHoles
+        p->z = zOrder(p->x, p->y);
         p->prevZ = p->prev;
         p->nextZ = p->next;
         p = p->next;
@@ -874,6 +1009,9 @@ void Earcut<N>::removeNode(Node* p) {
 
     if (p->prevZ) p->prevZ->nextZ = p->nextZ;
     if (p->nextZ) p->nextZ->prevZ = p->prevZ;
+
+    // keep the hole-bridge index's block bboxes covering the healed prev->next edge
+    if (indexActive) growBlock(p->prev, p->next);
 }
 } // namespace detail
 
