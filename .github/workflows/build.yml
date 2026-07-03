@@ -62,7 +62,7 @@ jobs:
             deps-${{ matrix.os }}-${{ matrix.cpp_compiler }}-
 
       - name: Configure CMake
-        run: cmake -B build -GNinja
+        run: cmake -B build -GNinja -DEARCUT_WARNING_IS_ERROR=ON
 
       - name: Build all targets
         run: cmake --build build
@@ -97,7 +97,7 @@ jobs:
             deps-macos-15-
 
       - name: Configure CMake
-        run: cmake -B build -GNinja
+        run: cmake -B build -GNinja -DEARCUT_WARNING_IS_ERROR=ON
 
       - name: Build all targets
         run: cmake --build build
@@ -145,7 +145,7 @@ jobs:
 
       - name: Configure CMake with sanitizers
         run: >
-          cmake -B build -GNinja -DEARCUT_BUILD_BENCH=OFF -DCMAKE_BUILD_TYPE=Debug
+          cmake -B build -GNinja -DEARCUT_WARNING_IS_ERROR=ON -DEARCUT_BUILD_BENCH=OFF -DCMAKE_BUILD_TYPE=Debug
           -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g"
 
       - name: Build tests
@@ -197,7 +197,7 @@ jobs:
             deps-coverage-
 
       - name: Configure CMake for coverage
-        run: cmake -B build -GNinja -DEARCUT_BUILD_BENCH=OFF -DCMAKE_CXX_FLAGS="--coverage" -DCMAKE_BUILD_TYPE=Debug
+        run: cmake -B build -GNinja -DEARCUT_WARNING_IS_ERROR=ON -DEARCUT_BUILD_BENCH=OFF -DCMAKE_CXX_FLAGS="--coverage" -DCMAKE_BUILD_TYPE=Debug
 
       - name: Build tests
         run: cmake --build build --target tests
@@ -281,7 +281,7 @@ jobs:
             deps-viz-
 
       - name: Configure CMake
-        run: cmake -B build -GNinja -DEARCUT_BUILD_TESTS=OFF -DEARCUT_BUILD_BENCH=OFF -DEARCUT_BUILD_VIZ=ON
+        run: cmake -B build -GNinja -DEARCUT_WARNING_IS_ERROR=ON -DEARCUT_BUILD_TESTS=OFF -DEARCUT_BUILD_BENCH=OFF -DEARCUT_BUILD_VIZ=ON
 
       - name: Build viz
         run: cmake --build build --target viz

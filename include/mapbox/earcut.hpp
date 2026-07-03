@@ -1021,4 +1021,184 @@ std::vector<N> earcut(const Polygon& poly) {
     earcut(poly);
     return std::move(earcut.indices);
 }
+
+namespace detail {
+
+// Refine a triangulation toward the constrained Delaunay triangulation by legalizing every interior
+// edge in place with Lawson flips — maximizing the minimum angle and removing most slivers. Adapted
+// from delaunator's edge legalization. Uses non-robust predicates: float input is fine, and the
+// worst case is a not-quite-Delaunay edge, never an invalid mesh. Ported from earcut v3.2.3.
+template <typename N>
+class Refiner {
+public:
+    // triangles: triangle indices as returned by earcut, mutated in place.
+    // coords: random-access container of points, indexed by vertex index (coords[i] -> point i),
+    // read through the same util::nth<0>/<1> accessors as earcut's input.
+    template <typename Coords>
+    void operator()(std::vector<N>& triangles, const Coords& coords) {
+        using Point = typename std::decay<decltype(coords[0])>::type;
+        const int n = static_cast<int>(triangles.size());
+        if (n < 6) return;
+        ensureScratch(static_cast<std::size_t>(n));
+        gen++; // bumping the generation logically empties the hash (no clearing)
+        std::fill(he.begin(), he.begin() + n, -1);
+
+        // Raw pointers into the scratch: indexed by the int/uint half-edge and hash indices below,
+        // where operator[]'s size_type would trip -Wsign-conversion on every subscript.
+        N* t = triangles.data();
+        int32_t* he = this->he.data();
+        int32_t* edgeStack = this->edgeStack.data();
+        int32_t* hTable = this->hTable.data();
+        uint32_t* hStamp = this->hStamp.data();
+        uint8_t* edgeStamp = this->edgeStamp.data();
+
+        auto X = [&](N p) -> double { return static_cast<double>(util::nth<0, Point>::get(coords[p])); };
+        auto Y = [&](N p) -> double { return static_cast<double>(util::nth<1, Point>::get(coords[p])); };
+
+        // Build half-edge twins with an undirected-edge hash; consumed slots mark linked pairs. As
+        // each pair is linked we seed the stack with one representative (s, the earlier-inserted
+        // edge) — this fuses the initial "push every interior edge" pass into the build, saving a
+        // full O(n) scan. edgeStamp is all-zero here (balanced push/pop leaves it clean) and each
+        // pair links once, so the seed write needs no dedup guard.
+        int i = 0;
+        for (int e = 0; e < n; e++) {
+            const N a = t[e], b = t[nextHE(e)];
+            const N lo = a < b ? a : b, hi = a < b ? b : a;
+            uint32_t h = (uint32_t(lo) * 0x9e3779b1u ^ uint32_t(hi) * 0x85ebca6bu) & hMask;
+            while (hStamp[h] == gen) {
+                const int32_t s = hTable[h];
+                // s == -1 marks a consumed slot (a pair already linked) — skip past it
+                if (s != -1) {
+                    const N sa = t[s], sb = t[nextHE(s)];
+                    if ((sa == lo && sb == hi) || (sa == hi && sb == lo)) {
+                        he[e] = s;
+                        he[s] = e;
+                        hTable[h] = -1; // link, then consume the slot
+                        edgeStamp[s] = 1;
+                        edgeStack[i++] = s; // seed the interior edge for the cascade
+                        break;
+                    }
+                }
+                h = (h + 1) & hMask;
+            }
+            if (hStamp[h] != gen) {
+                hTable[h] = e;
+                hStamp[h] = gen;
+            } // first occurrence: insert
+        }
+
+        while (i > 0) {
+            const int a = edgeStack[--i];
+            edgeStamp[a] = 0;
+            const int b = he[a];
+            if (b == -1) continue;
+
+            const int a0 = a - a % 3;
+            const int b0 = b - b % 3;
+            const int ar = a0 + (a + 2) % 3;
+            const int al = a0 + (a + 1) % 3;
+            const int bl = b0 + (b + 2) % 3;
+            const int br = b0 + (b + 1) % 3;
+            const N p0 = t[ar], pr = t[a], pl = t[al], p1 = t[bl];
+
+            const double x0 = X(p0), y0 = Y(p0);
+            const double xr = X(pr), yr = Y(pr);
+            const double xl = X(pl), yl = Y(pl);
+            const double x1 = X(p1), y1 = Y(p1);
+
+            // Test inCircle first: most interior edges are already Delaunay (inCircle true → no
+            // flip), so this short-circuits before the two convexity orients on the common path. The
+            // quad must also be convex (both new triangles CCW) — flipping a reflex quad would push
+            // a triangle outside the polygon. Boundary/hole edges self-protect via he == -1.
+            if (!inCircle(x0, y0, xr, yr, xl, yl, x1, y1) && orient(x0, y0, xr, yr, x1, y1) > 0 &&
+                orient(x0, y0, x1, y1, xl, yl) > 0) {
+                t[a] = p1;
+                t[b] = p0;
+                const int32_t hbl = he[bl], har = he[ar];
+                he[a] = hbl;
+                if (hbl != -1) he[hbl] = a;
+                he[b] = har;
+                if (har != -1) he[har] = b;
+                he[ar] = bl;
+                he[bl] = ar;
+
+                // re-check the quad's four outer edges; skip boundary edges (he == -1) and any
+                // already queued (edgeStamp), which also keeps the stack bounded by n.
+                if (hbl != -1 && edgeStamp[a] == 0) {
+                    edgeStamp[a] = 1;
+                    edgeStack[i++] = a;
+                }
+                if (har != -1 && edgeStamp[b] == 0) {
+                    edgeStamp[b] = 1;
+                    edgeStack[i++] = b;
+                }
+                if (he[al] != -1 && edgeStamp[al] == 0) {
+                    edgeStamp[al] = 1;
+                    edgeStack[i++] = al;
+                }
+                if (he[br] != -1 && edgeStamp[br] == 0) {
+                    edgeStamp[br] = 1;
+                    edgeStack[i++] = br;
+                }
+            }
+        }
+    }
+
+private:
+    // Reusable scratch, grown on demand like earcut's z-order arrays and reused across calls:
+    //   he      = twin half-edge of each edge, or -1 on the polygon boundary
+    //   hTable  = open-addressing hash, slot -> half-edge index, valid iff hStamp[slot] == gen
+    //   edgeStamp = pending-in-stack flag, cleared when the edge is popped
+    std::vector<int32_t> he, edgeStack, hTable;
+    std::vector<uint32_t> hStamp;
+    std::vector<uint8_t> edgeStamp;
+    uint32_t hMask = 0, gen = 0;
+
+    static int nextHE(int e) { return e - e % 3 + (e + 1) % 3; } // next half-edge in same triangle
+
+    static double orient(double ax, double ay, double bx, double by, double cx, double cy) {
+        return (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+    }
+
+    // Whether p is inside or exactly on the circumcircle of triangle (a, b, c). Sign is negated vs
+    // the usual predicate to match earcut's CCW winding — the standard sign builds the anti-Delaunay
+    // mesh. Cocircular quads are legal ties, so refine only flips when this returns false.
+    static bool inCircle(double ax, double ay, double bx, double by, double cx, double cy, double px, double py) {
+        const double dx = ax - px, dy = ay - py, ex = bx - px, ey = by - py, fx = cx - px, fy = cy - py;
+        const double ap = dx * dx + dy * dy, bp = ex * ex + ey * ey, cp = fx * fx + fy * fy;
+        // A near-cocircular quad is a legal Delaunay tie, but roundoff can flag both an edge and its
+        // flip as illegal, cascading into an endless flip loop (#205) — so treat a determinant
+        // within a small margin of zero as a tie. The determinant's worst-case roundoff error is
+        // provably below 9e-16·(ap+bp+cp)² (Shewchuk-style bound), so the margin guarantees every
+        // executed flip is illegal in exact arithmetic, and Lawson flipping always terminates.
+        const double s = ap + bp + cp;
+        return dx * (ey * cp - bp * fy) - dy * (ex * cp - bp * fx) + ap * (ex * fy - ey * fx) <= 1e-13 * s * s;
+    }
+
+    void ensureScratch(std::size_t n) {
+        // edgeStack holds at most one entry per half-edge (edgeStamp dedups), so n is a safe cap.
+        if (edgeStack.size() < n) edgeStack.resize(n);
+        if (he.size() < n) he.resize(n);
+        if (edgeStamp.size() < n) edgeStamp.resize(n, 0);
+        std::size_t size = 1;
+        while (size < n * 4) size <<= 1; // power-of-two table, load factor <= 0.25
+        if (hTable.size() < size) {
+            hTable.resize(size);
+            hStamp.resize(size, 0);
+        }
+        hMask = uint32_t(size) - 1;
+    }
+};
+
+} // namespace detail
+
+// Opt-in Delaunay-refinement post-pass for earcut() output (or any manifold triangle-index array).
+// Legalizes every interior edge in place with Lawson flips. See detail::Refiner. `coords` is a
+// random-access container of points indexed by vertex index; `triangles` is mutated in place.
+template <typename N, typename Coords>
+void refine(std::vector<N>& triangles, const Coords& coords) {
+    static thread_local mapbox::detail::Refiner<N> refiner;
+    refiner(triangles, coords);
+}
+
 } // namespace mapbox

@@ -113,16 +113,19 @@ public:
 };
 
 class DrawableTesselator : public DrawablePolygon {
-    mapbox::fixtures::FixtureTester::TesselatorResult shape;
     mapbox::fixtures::DoublePolygon const& polygon;
+
+protected:
+    std::vector<std::array<double, 2>> vertices;
+    std::vector<uint32_t> indices;
 
 public:
     explicit DrawableTesselator(mapbox::fixtures::FixtureTester::TesselatorResult tessellation,
                                 mapbox::fixtures::DoublePolygon const& poly)
-        : shape(tessellation), polygon(poly) {}
+        : polygon(poly), vertices(tessellation.vertices), indices(tessellation.indices) {}
     void drawMesh() override {
-        const auto& v = shape.vertices;
-        const auto& x = shape.indices;
+        const auto& v = vertices;
+        const auto& x = indices;
         glBegin(GL_LINES);
         glColor4fv(colorMesh);
         for (size_t i = 0; i < x.size(); i += 3) {
@@ -150,8 +153,8 @@ public:
         glEnd();
     }
     void drawFill() override {
-        const auto& v = shape.vertices;
-        const auto& x = shape.indices;
+        const auto& v = vertices;
+        const auto& x = indices;
         glBegin(GL_TRIANGLES);
         glColor4fv(colorFill);
         for (const auto pt : x) {
@@ -166,6 +169,20 @@ public:
     explicit DrawableEarcut(mapbox::fixtures::FixtureTester* fixture)
         : DrawableTesselator(fixture->earcut(), fixture->polygon()) {}
     const char* name() override { return "earcut"; };
+};
+
+class DrawableEarcutRefine : public DrawableTesselator {
+public:
+    explicit DrawableEarcutRefine(mapbox::fixtures::FixtureTester* fixture)
+        : DrawableTesselator(fixture->earcut(), fixture->polygon()) {
+        // refine() reads a flat, index-addressable vertex list (the rings concatenated in the
+        // same order earcut's indices refer to), so flatten the polygon before refining.
+        std::vector<std::array<double, 2>> coords;
+        for (const auto& ring : fixture->polygon())
+            for (const auto& p : ring) coords.push_back({{std::get<0>(p), std::get<1>(p)}});
+        mapbox::refine(indices, coords);
+    }
+    const char* name() override { return "earcut-refine"; };
 };
 
 class DrawableScanLineFill : public DrawablePolygon {
@@ -311,12 +328,14 @@ std::unique_ptr<DrawablePolygon> DrawablePolygon::makeDrawable(std::size_t index
                                                                mapbox::fixtures::FixtureTester* fixture) {
     if (index == 0) {
         return std::unique_ptr<DrawablePolygon>(new DrawableEarcut(fixture));
+    } else if (index == 1) {
+        return std::unique_ptr<DrawablePolygon>(new DrawableEarcutRefine(fixture));
     } else {
         return std::unique_ptr<DrawablePolygon>(new DrawableScanLineFill(fixture));
     }
 }
 
-static std::array<std::unique_ptr<DrawablePolygon>, 2> tessellators;
+static std::array<std::unique_ptr<DrawablePolygon>, 3> tessellators;
 
 mapbox::fixtures::FixtureTester* getFixture(std::size_t i) {
     auto& fixtures = mapbox::fixtures::FixtureTester::collection();

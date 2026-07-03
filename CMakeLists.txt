@@ -32,7 +32,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # fetched here and pinned by tag (kept in lockstep with the port — bump on version updates).
 FetchContent_Declare(earcut_js
     GIT_REPOSITORY https://github.com/mapbox/earcut.git
-    GIT_TAG v3.1.1
+    GIT_TAG v3.2.3
     GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(earcut_js)
 
@@ -128,8 +128,8 @@ if (EARCUT_BUILD_BENCH)
     FetchContent_MakeAvailable(benchmark)
 
     # libtess2: fetched download-only (no upstream CMake, so MakeAvailable just populates) and built
-    # here as a static lib linked into the benchmark alone — purely a performance comparison point
-    # (A4). It provides no correctness coverage, so tests/viz never see it.
+    # here as a static lib linked into the benchmark alone — purely a performance comparison point.
+    # It provides no correctness coverage, so tests/viz never see it.
     FetchContent_Declare(libtess2
         GIT_REPOSITORY https://github.com/memononen/libtess2.git
         GIT_TAG v1.0.2

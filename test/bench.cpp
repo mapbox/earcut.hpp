@@ -39,7 +39,7 @@ static void BM_EarcutTriangulation(benchmark::State& state) {
 }
 
 // Benchmark libtess2 triangulation (comparison point only; built locally so libtess stays a
-// benchmark-only dependency — see A4).
+// benchmark-only dependency).
 static void BM_LibtessTriangulation(benchmark::State& state) {
     auto fixtures = getBenchmarkFixtures();
     auto fixture = fixtures[static_cast<size_t>(state.range(0))];
@@ -52,7 +52,7 @@ static void BM_LibtessTriangulation(benchmark::State& state) {
     state.SetLabel(fixture->name);
 }
 
-// --- MVT tiles benchmark (the realistic production workload; see Step 10) ------------------
+// --- MVT tiles benchmark (the realistic production workload) -------------------------------
 //
 // The earcut-in-production regime is the small/simple bucket (GL Native routes larger/holey
 // polygons to a monotone triangulator). Report the bench bucketed so the speedup story stays
@@ -100,6 +100,40 @@ static void BM_EarcutTiles(benchmark::State& state, TileBucket bucket) {
     state.counters["tris"] = static_cast<double>(tris / 3);
 }
 
+// Pure refine() overhead: earcut output and per-poly flattened coords are built once (untimed);
+// each state iteration restores a working copy of the base triangulation (untimed, PauseTiming) and
+// times refine() alone — read directly against BM_EarcutTiles for the relative post-pass cost.
+static void BM_RefineTiles(benchmark::State& state, TileBucket bucket) {
+    const auto& all = mapbox::fixtures::mvtFixture();
+
+    std::vector<std::vector<mapbox::fixtures::MvtPoint>> coords;
+    std::vector<std::vector<uint32_t>> base;
+    std::size_t verts = 0;
+    for (const auto& f : all) {
+        if (!inBucket(f, bucket)) continue;
+        std::vector<mapbox::fixtures::MvtPoint> pts;
+        for (const auto& ring : f.polygon)
+            for (const auto& p : ring) pts.push_back(p);
+        base.push_back(mapbox::earcut<uint32_t>(f.polygon));
+        coords.push_back(std::move(pts));
+        verts += f.vertexCount;
+    }
+
+    std::vector<std::vector<uint32_t>> work(base.size());
+    for (auto _ : state) {
+        state.PauseTiming();
+        for (std::size_t i = 0; i < base.size(); ++i) work[i] = base[i];
+        state.ResumeTiming();
+        for (std::size_t i = 0; i < work.size(); ++i) {
+            mapbox::refine(work[i], coords[i]);
+            benchmark::DoNotOptimize(work[i].data());
+        }
+    }
+    state.SetItemsProcessed(static_cast<int64_t>(state.iterations()) * static_cast<int64_t>(work.size()));
+    state.counters["polys"] = static_cast<double>(base.size());
+    state.counters["verts"] = static_cast<double>(verts);
+}
+
 // Register benchmarks for all fixtures
 static void RegisterBenchmarks() {
     auto fixtures = getBenchmarkFixtures();
@@ -119,6 +153,12 @@ static void RegisterBenchmarks() {
     benchmark::RegisterBenchmark("BM_EarcutTiles/large", BM_EarcutTiles, TileBucket::Large)
         ->Unit(benchmark::kMillisecond);
     benchmark::RegisterBenchmark("BM_EarcutTiles/all", BM_EarcutTiles, TileBucket::All)->Unit(benchmark::kMillisecond);
+
+    benchmark::RegisterBenchmark("BM_RefineTiles/small", BM_RefineTiles, TileBucket::Small)
+        ->Unit(benchmark::kMillisecond);
+    benchmark::RegisterBenchmark("BM_RefineTiles/large", BM_RefineTiles, TileBucket::Large)
+        ->Unit(benchmark::kMillisecond);
+    benchmark::RegisterBenchmark("BM_RefineTiles/all", BM_RefineTiles, TileBucket::All)->Unit(benchmark::kMillisecond);
 }
 
 int main(int argc, char** argv) {
