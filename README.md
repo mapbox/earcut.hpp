@@ -1,9 +1,10 @@
 ## Earcut
 
 A fast, [header-only](https://github.com/mapbox/earcut.hpp/blob/master/include/mapbox/earcut.hpp) C++ port of [earcut.js](https://github.com/mapbox/earcut), the fastest and smallest JavaScript polygon triangulation library.
-
-[![Build](https://github.com/mapbox/earcut.hpp/actions/workflows/build.yml/badge.svg)](https://github.com/mapbox/earcut.hpp/actions/workflows/build.yml)
+[![CI status](https://github.com/mapbox/earcut.hpp/actions/workflows/build.yml/badge.svg)](https://github.com/mapbox/earcut.hpp/actions/workflows/build.yml)
 [![Volodymyr Agafonkin's projects](https://img.shields.io/badge/simply-awesome-brightgreen.svg)](https://github.com/mourner/projects)
+
+![Earcut triangulation example](earcut.png)
 
 Earcut favors raw speed and simplicity over triangulation quality, while being robust enough to handle most practical datasets without crashing or producing garbage, with an option to [refine](#refinement-optional-delaunay-post-pass) the result to [Delaunay](https://en.wikipedia.org/wiki/Delaunay_triangulation) quality at a small cost. Originally built for [Mapbox GL](https://www.mapbox.com/), it's a good fit for real-time triangulation of geographical shapes and other practical data.
 
@@ -15,62 +16,42 @@ It implements a modified ear slicing algorithm, optimized by [z-order curve](htt
 #include <earcut.hpp>
 ```
 ```cpp
-// The number type to use for tessellation
-using Coord = double;
+// A point is any type with x/y accessors; std::array works out of the box.
+using Point = std::array<double, 2>;
 
-// The index type. Defaults to uint32_t, but you can also pass uint16_t if you know that your
-// data won't have more than 65536 vertices.
+// A polygon is a list of rings. The first ring is the outer boundary; the rest are holes.
+// Winding order doesn't matter, and rings can be given in any order.
+std::vector<std::vector<Point>> polygon = {
+    {{100, 0}, {100, 100}, {0, 100}, {0, 0}},  // outer ring
+    {{75, 25}, {75, 75}, {25, 75}, {25, 25}},  // hole
+};
+
+// The index type. Defaults to uint32_t; pass uint16_t if your data never exceeds 65536 vertices.
 using N = uint32_t;
 
-// Create array
-using Point = std::array<Coord, 2>;
-std::vector<std::vector<Point>> polygon;
-
-// Fill polygon structure with actual data. Any winding order works.
-// The first polyline defines the main polygon.
-polygon.push_back({{100, 0}, {100, 100}, {0, 100}, {0, 0}});
-// Following polylines define holes.
-polygon.push_back({{75, 25}, {75, 75}, {25, 75}, {25, 25}});
-
-// Run tessellation
-// Returns array of indices that refer to the vertices of the input polygon.
-// e.g: the index 6 would refer to {25, 75} in this example.
-// Three subsequent indices form a triangle. Output triangles have a consistent winding order
-// regardless of the input winding: counter-clockwise in a y-up coordinate system (clockwise in
+// Triangulate. The result is a flat list of indices into the input vertices (numbered ring after
+// ring, so index 6 is {25, 75} here), three per triangle. Output triangles have a consistent
+// winding regardless of the input: counter-clockwise in a y-up coordinate system (clockwise in
 // y-down/screen space). Call std::reverse on the result if you need the opposite orientation.
 std::vector<N> indices = mapbox::earcut<N>(polygon);
 ```
 
 Earcut can triangulate a simple, planar polygon of any winding order including holes. It will even return a robust, acceptable solution for non-simple polygons. Earcut works on a 2D plane: only `x` and `y` are used, so if you have three or more dimensions, project them onto a 2D surface before triangulation, or use a more suitable library for the task (e.g. [CGAL](https://doc.cgal.org/latest/Triangulation_3/index.html)).
 
-It is also possible to use your custom point type as input. There are default accessors defined for `std::tuple`, `std::pair`, and `std::array`. For a custom type (like Clipper's `IntPoint` type), do this:
+Any point type works as input — earcut reads coordinates through the `nth` accessor. Accessors for `std::tuple`, `std::pair`, and `std::array` ship by default; for a custom type (like Clipper's `IntPoint`), specialize `nth` for it:
 
 ```cpp
-// struct IntPoint {
-//     int64_t X, Y;
-// };
+struct IntPoint { int64_t X, Y; };
 
-namespace mapbox {
-namespace util {
+namespace mapbox { namespace util {
 
-template <>
-struct nth<0, IntPoint> {
-    inline static auto get(const IntPoint &t) {
-        return t.X;
-    };
-};
-template <>
-struct nth<1, IntPoint> {
-    inline static auto get(const IntPoint &t) {
-        return t.Y;
-    };
-};
+template <> struct nth<0, IntPoint> { static auto get(const IntPoint& p) { return p.X; } };
+template <> struct nth<1, IntPoint> { static auto get(const IntPoint& p) { return p.Y; } };
 
-} // namespace util
-} // namespace mapbox
+}} // namespace mapbox::util
 ```
 
-You can also use a custom container type for your polygon. Similar to std::vector<T>, it has to meet the requirements of [Container](https://en.cppreference.com/w/cpp/named_req/Container), in particular `size()`, `empty()` and `operator[]`.
+The polygon and ring containers are just as flexible: any type that meets the [Container](https://en.cppreference.com/w/cpp/named_req/Container) requirements (`size()`, `empty()`, `operator[]`) works in place of `std::vector`.
 
 ### Refinement (optional Delaunay post-pass)
 
@@ -86,10 +67,6 @@ mapbox::refine(indices, coords);
 ```
 
 It assumes a valid manifold triangulation, such as the output of `earcut` (though any manifold triangle-index array works), and reads `coords` through the same `nth<0>`/`nth<1>` accessors. It doesn't repair invalid polygon input or make the mesh conforming. Note also that `refine` uses **non-robust** predicates: float input is fine, and the worst case is a not-quite-Delaunay edge, never an invalid mesh — but unlike `earcut` it does not promise bit-identical output across compilers.
-
-<p align="center">
-  <img src="https://camo.githubusercontent.com/01836f8ba21af844c93d8d3145f4e9976025a696/68747470733a2f2f692e696d6775722e636f6d2f67314e704c54712e706e67" alt="example triangulation"/>
-</p>
 
 ## Performance
 
@@ -113,7 +90,7 @@ triangulation even on bad data, use a library like [CGAL](https://www.cgal.org/)
 
 The output is also not _conforming_ — a vertex may land in the middle of another triangle's edge (a
 T-junction). This is harmless for rendering but can break navmesh or FEM use; if you need a
-conforming mesh, remove T-junctions in a post-process.
+conforming mesh, [remove T-junctions in a post-process](https://github.com/mapbox/earcut/issues/74#issuecomment-4826113682).
 
 ## Additional build instructions
 In case you just want to use the earcut triangulation library; copy and include the header file [`<earcut.hpp>`](https://github.com/mapbox/earcut.hpp/blob/master/include/mapbox/earcut.hpp) in your project and follow the steps documented in the section [Usage](#usage).
@@ -150,6 +127,20 @@ Build options (all default to their common value): `-DEARCUT_BUILD_TESTS=ON`,
 
 CMake can also generate IDE projects (Visual Studio, Xcode, etc.) — e.g.
 `cmake -B build -G "Visual Studio 17 2022"` — or import the folder directly in CLion / VS.
+
+### Visualizer
+
+There's an interactive OpenGL viewer for inspecting the triangulation of the bundled test fixtures.
+It's off by default (it needs an OpenGL SDK and GLFW); enable and run it with:
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DEARCUT_BUILD_VIZ=ON
+cmake --build build --target viz -j
+./build/viz
+```
+
+Controls: **←/→** switch fixture, **↑/↓** switch tessellator (earcut / earcut + refine / scanline fill),
+**F/M/O** toggle fill/mesh/outline, **WASD** pan, **+/−** or scroll to zoom, **R** reset, **Q**/**Esc** quit.
 
 ## Status
 

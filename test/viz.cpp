@@ -347,6 +347,15 @@ mapbox::fixtures::FixtureTester* getFixture(std::size_t i) {
 }
 
 int main() {
+    // Open on the "earcut" fixture to match the JS visualizer's default, falling back to the first.
+    const auto& fixtures = mapbox::fixtures::FixtureTester::collection();
+    for (std::size_t i = 0; i < fixtures.size(); ++i) {
+        if (fixtures[i]->name == "earcut") {
+            shapeIndex = i;
+            break;
+        }
+    }
+
     if (!glfwInit()) {
         return 1;
     }
