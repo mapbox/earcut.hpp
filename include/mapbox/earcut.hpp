@@ -147,9 +147,8 @@ private:
     template <typename T, typename Alloc = std::allocator<T>>
     class ObjectPool {
     public:
-        ObjectPool() { allocateNewBlock(256); }
-        ObjectPool(std::size_t blockSize_) : baseBlockSize(blockSize_) {
-            allocateNewBlock(std::max<std::size_t>(blockSize_, 256));
+        ObjectPool(std::size_t blockSize_) : baseBlockSize(std::max<std::size_t>(blockSize_, 256)) {
+            allocateNewBlock();
         }
         ~ObjectPool() { clear(); }
         template <typename... Args>
@@ -162,7 +161,7 @@ private:
                     currentIndex = 0;
                 } else {
                     // Allocate a new one
-                    allocateNewBlock(baseBlockSize);
+                    allocateNewBlock();
                 }
             }
 
@@ -172,7 +171,6 @@ private:
             currentIndex++;
             return object;
         }
-        void reset() { clear(); }
         void clear() {
             // Destroy all objects, but keep blocks allocated for reuse
             std::size_t objectsDestroyed = 0;
@@ -204,17 +202,15 @@ private:
         };
 
         std::vector<std::unique_ptr<T[], AllocDeleter>> memoryBlocks;
-        std::vector<std::size_t> blockCapacities;
         std::size_t currentBlockIndex = 0;
         std::size_t currentIndex = 0;
         std::size_t totalObjects = 0;
-        std::size_t baseBlockSize = 256;
+        const std::size_t baseBlockSize;
 
-        void allocateNewBlock(std::size_t capacity) {
-            T* rawMemory = alloc_traits::allocate(alloc, capacity);
-            auto newBlock = std::unique_ptr<T[], AllocDeleter>(rawMemory, AllocDeleter{alloc, capacity});
+        void allocateNewBlock() {
+            T* rawMemory = alloc_traits::allocate(alloc, baseBlockSize);
+            auto newBlock = std::unique_ptr<T[], AllocDeleter>(rawMemory, AllocDeleter{alloc, baseBlockSize});
             memoryBlocks.push_back(std::move(newBlock));
-            blockCapacities.push_back(capacity);
             currentBlockIndex = memoryBlocks.size() - 1;
             currentIndex = 0;
         }
