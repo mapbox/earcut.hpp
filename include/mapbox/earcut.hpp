@@ -254,9 +254,10 @@ void Earcut<N>::operator()(const Polygon& points) {
     int threshold = 80;
     std::size_t len = 0;
 
-    for (size_t i = 0; threshold >= 0 && i < points.size(); i++) {
+    const std::size_t numRings = static_cast<std::size_t>(points.size());
+    for (std::size_t i = 0; threshold >= 0 && i < numRings; i++) {
         threshold -= static_cast<int>(points[i].size());
-        len += points[i].size();
+        len += static_cast<std::size_t>(points[i].size());
     }
 
     // estimate size of nodes and indices
@@ -264,7 +265,7 @@ void Earcut<N>::operator()(const Polygon& points) {
         std::size_t estimatedNodes = len * 3 / 2;
         nodes = std::make_unique<ObjectPool<Node>>(std::max<std::size_t>(estimatedNodes, 256));
     }
-    indices.reserve(len + points[0].size());
+    indices.reserve(len + static_cast<std::size_t>(points[0].size()));
 
     Node* outerNode = linkedList(points[0], true);
     if (!outerNode || outerNode->prev == outerNode->next) return;
@@ -304,7 +305,7 @@ template <typename Ring>
 typename Earcut<N>::Node* Earcut<N>::linkedList(const Ring& points, const bool clockwise) {
     using Point = typename Ring::value_type;
     double sum = 0;
-    const std::size_t len = points.size();
+    const std::size_t len = static_cast<std::size_t>(points.size());
     std::size_t i, j;
     Node* last = nullptr;
 
@@ -545,7 +546,7 @@ void Earcut<N>::splitEarcut(Node* start) {
 template <typename N>
 template <typename Polygon>
 typename Earcut<N>::Node* Earcut<N>::eliminateHoles(const Polygon& points, Node* outerNode) {
-    const size_t len = points.size();
+    const size_t len = static_cast<std::size_t>(points.size());
 
     holeQueue.clear();
     for (size_t i = 1; i < len; i++) {

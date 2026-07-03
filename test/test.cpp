@@ -120,6 +120,38 @@ TEST(EarcutTypedInput, Double) {
     checkSquareWithHole<double>();
 }
 
+// A minimal container whose size() returns a *signed* type, mimicking Qt's QList (qsizetype).
+// earcut is a template, so signedness warnings (-Wsign-compare / -Wsign-conversion) only fire for
+// the container types it is actually instantiated with. Every other test uses std::vector, whose
+// size() is unsigned, so this instantiation is what guards the signed-size container path against
+// regressions like PR #119 — under the CI's -Werror build, a reintroduced mismatch fails the build.
+template <typename T>
+class SignedSizeList {
+public:
+    using value_type = T;
+    using size_type = std::ptrdiff_t; // signed, like Qt's qsizetype
+
+    SignedSizeList() = default;
+    SignedSizeList(std::initializer_list<T> init) : data_(init) {}
+
+    size_type size() const { return static_cast<size_type>(data_.size()); }
+    bool empty() const { return data_.empty(); }
+    const T& operator[](std::size_t i) const { return data_[i]; }
+
+private:
+    std::vector<T> data_;
+};
+
+TEST(EarcutTypedInput, SignedSizeContainer) {
+    using Ring = SignedSizeList<std::pair<double, double>>;
+    SignedSizeList<Ring> polygon{
+        Ring{{0, 0}, {100, 0}, {100, 100}, {0, 100}},
+        Ring{{25, 25}, {75, 25}, {75, 75}, {25, 75}},
+    };
+    const auto indices = mapbox::earcut<uint32_t>(polygon);
+    EXPECT_EQ(indices.size() / 3, 8u);
+}
+
 // ---- refine() ------------------------------------------------------------------------------
 
 template <typename Vertices, typename Indices>
