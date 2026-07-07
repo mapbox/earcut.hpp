@@ -561,9 +561,12 @@ typename Earcut<N>::Node* Earcut<N>::eliminateHoles(const Polygon& points, Node*
     std::sort(holeQueue.begin(), holeQueue.end(), [](const Node* a, const Node* b) {
         if (a->x != b->x) return a->x < b->x;
         if (a->y != b->y) return a->y < b->y;
-        const double aSlope = (a->next->y - a->y) / (a->next->x - a->x);
-        const double bSlope = (b->next->y - b->y) / (b->next->x - b->x);
-        return aSlope < bSlope;
+        const double adx = a->next->x - a->x, ady = a->next->y - a->y;
+        const double bdx = b->next->x - b->x, bdy = b->next->y - b->y;
+        const bool aDegenerate = adx == 0 && ady == 0;
+        const bool bDegenerate = bdx == 0 && bdy == 0;
+        if (aDegenerate != bDegenerate) return aDegenerate;
+        return ady * bdx < bdy * adx;
     });
 
     // block-bbox index for findHoleBridge, grown append-only as holes merge. Seed it with the
