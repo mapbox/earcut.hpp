@@ -353,8 +353,8 @@ TEST(EarcutTiles, ZeroDeviation) {
 INSTANTIATE_TEST_SUITE_P(FixtureTests,
                          EarcutAreaTest,
                          ::testing::ValuesIn(mapbox::fixtures::FixtureTester::collection()),
-                         [](const ::testing::TestParamInfo<mapbox::fixtures::FixtureTester*>& info) {
-                             std::string name = info.param->name;
+                         [](const ::testing::TestParamInfo<mapbox::fixtures::FixtureTester*>& paramInfo) {
+                             std::string name = paramInfo.param->name;
                              std::replace(name.begin(), name.end(), '-', '_');
                              std::replace(name.begin(), name.end(), '.', '_');
                              return name;
