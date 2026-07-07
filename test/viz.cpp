@@ -34,9 +34,9 @@ struct Camera2D {
     double mx = .0, cx = .0, my = .0, cy = .0;
     inline float dpi() { return float(viewHeight) / height; }
     inline double scaling() { return std::pow(1.1, zoom); }
-    void setView(int width, int height) {
-        viewWidth = width;
-        viewHeight = height;
+    void setView(int w, int h) {
+        viewWidth = w;
+        viewHeight = h;
     }
     void limits(double l, double r, double b, double t) {
         left = l;
@@ -455,8 +455,8 @@ int main() {
         }
 
         if (dirtyShape) {
-            for (auto& tessellator : tessellators) {
-                tessellator.reset(nullptr);
+            for (auto& t : tessellators) {
+                t.reset(nullptr);
             }
 
             const auto& polygon = getFixture(shapeIndex)->polygon();

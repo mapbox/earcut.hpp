@@ -69,7 +69,8 @@ target_link_libraries(common INTERFACE comparison)
 
 # optional: -march=native (builds with the optimizations available on the build machine (only for local use!))
 target_compile_options(common INTERFACE
-    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-pipe -Wall -Wextra -Wconversion -Wpedantic>
+    $<$<CXX_COMPILER_ID:MSVC>:/we4458>
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-pipe -Wall -Wextra -Wconversion -Wpedantic -Wshadow>
 )
 
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang$" OR CMAKE_COMPILER_IS_GNUCXX)

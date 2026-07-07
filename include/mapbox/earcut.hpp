@@ -709,30 +709,30 @@ void Earcut<N>::indexSegment(Node* head, Node* stop) {
     do {
         const std::size_t b = numBlocks++;
         blockHead[b] = p;
-        double minX = std::numeric_limits<double>::max();
-        double minY = std::numeric_limits<double>::max();
-        double maxX = std::numeric_limits<double>::lowest();
-        double maxY = std::numeric_limits<double>::lowest();
+        double bMinX = std::numeric_limits<double>::max();
+        double bMinY = std::numeric_limits<double>::max();
+        double bMaxX = std::numeric_limits<double>::lowest();
+        double bMaxY = std::numeric_limits<double>::lowest();
         int32_t k = 0;
         do {
             Node* c = p->next;              // edge p->c; bbox must bound both endpoints
             p->z = static_cast<int32_t>(b); // reuse z as the owning block during eliminateHoles (see growBlock)
-            if (p->x < minX) minX = p->x;
-            if (p->x > maxX) maxX = p->x;
-            if (p->y < minY) minY = p->y;
-            if (p->y > maxY) maxY = p->y;
-            if (c->x < minX) minX = c->x;
-            if (c->x > maxX) maxX = c->x;
-            if (c->y < minY) minY = c->y;
-            if (c->y > maxY) maxY = c->y;
+            if (p->x < bMinX) bMinX = p->x;
+            if (p->x > bMaxX) bMaxX = p->x;
+            if (p->y < bMinY) bMinY = p->y;
+            if (p->y > bMaxY) bMaxY = p->y;
+            if (c->x < bMinX) bMinX = c->x;
+            if (c->x > bMaxX) bMaxX = c->x;
+            if (c->y < bMinY) bMinY = c->y;
+            if (c->y > bMaxY) bMaxY = c->y;
             p = c;
         } while (++k < K && p != stop);
         blockStop[b] = p;
         const std::size_t g = b * 4;
-        blockBBox[g] = minX;
-        blockBBox[g + 1] = minY;
-        blockBBox[g + 2] = maxX;
-        blockBBox[g + 3] = maxY;
+        blockBBox[g] = bMinX;
+        blockBBox[g + 1] = bMinY;
+        blockBBox[g + 2] = bMaxX;
+        blockBBox[g + 3] = bMaxY;
     } while (p != stop);
 }
 
@@ -917,16 +917,16 @@ template <typename N>
 bool Earcut<N>::intersectsPolygon(const Node* a, const Node* b) {
     // diagonal bbox; an edge whose bbox can't overlap it can't intersect it, so
     // skip the orientation test for those (the common case — the diagonal is short)
-    const double minX = std::min<double>(a->x, b->x);
-    const double maxX = std::max<double>(a->x, b->x);
-    const double minY = std::min<double>(a->y, b->y);
-    const double maxY = std::max<double>(a->y, b->y);
+    const double diagMinX = std::min<double>(a->x, b->x);
+    const double diagMaxX = std::max<double>(a->x, b->x);
+    const double diagMinY = std::min<double>(a->y, b->y);
+    const double diagMaxY = std::max<double>(a->y, b->y);
 
     const Node* p = a;
     do {
         const Node* n = p->next;
-        if ((p->x > maxX && n->x > maxX) || (p->x < minX && n->x < minX) || (p->y > maxY && n->y > maxY) ||
-            (p->y < minY && n->y < minY)) {
+        if ((p->x > diagMaxX && n->x > diagMaxX) || (p->x < diagMinX && n->x < diagMinX) ||
+            (p->y > diagMaxY && n->y > diagMaxY) || (p->y < diagMinY && n->y < diagMinY)) {
             p = n;
             continue;
         }
@@ -1044,16 +1044,16 @@ public:
         if (n < 6) return;
         ensureScratch(static_cast<std::size_t>(n));
         gen++; // bumping the generation logically empties the hash (no clearing)
-        std::fill(he.begin(), he.begin() + n, -1);
+        std::fill(heVec.begin(), heVec.begin() + n, -1);
 
         // Raw pointers into the scratch: indexed by the int/uint half-edge and hash indices below,
         // where operator[]'s size_type would trip -Wsign-conversion on every subscript.
         N* t = triangles.data();
-        int32_t* he = this->he.data();
-        int32_t* edgeStack = this->edgeStack.data();
-        int32_t* hTable = this->hTable.data();
-        uint32_t* hStamp = this->hStamp.data();
-        uint8_t* edgeStamp = this->edgeStamp.data();
+        int32_t* he = heVec.data();
+        int32_t* edgeStack = edgeStackVec.data();
+        int32_t* hTable = hTableVec.data();
+        uint32_t* hStamp = hStampVec.data();
+        uint8_t* edgeStamp = edgeStampVec.data();
 
         auto X = [&](N p) -> double { return static_cast<double>(util::nth<0, Point>::get(coords[p])); };
         auto Y = [&](N p) -> double { return static_cast<double>(util::nth<1, Point>::get(coords[p])); };
@@ -1152,9 +1152,9 @@ private:
     //   he      = twin half-edge of each edge, or -1 on the polygon boundary
     //   hTable  = open-addressing hash, slot -> half-edge index, valid iff hStamp[slot] == gen
     //   edgeStamp = pending-in-stack flag, cleared when the edge is popped
-    std::vector<int32_t> he, edgeStack, hTable;
-    std::vector<uint32_t> hStamp;
-    std::vector<uint8_t> edgeStamp;
+    std::vector<int32_t> heVec, edgeStackVec, hTableVec;
+    std::vector<uint32_t> hStampVec;
+    std::vector<uint8_t> edgeStampVec;
     uint32_t hMask = 0, gen = 0;
 
     static int nextHE(int e) { return e - e % 3 + (e + 1) % 3; } // next half-edge in same triangle
@@ -1180,14 +1180,14 @@ private:
 
     void ensureScratch(std::size_t n) {
         // edgeStack holds at most one entry per half-edge (edgeStamp dedups), so n is a safe cap.
-        if (edgeStack.size() < n) edgeStack.resize(n);
-        if (he.size() < n) he.resize(n);
-        if (edgeStamp.size() < n) edgeStamp.resize(n, 0);
+        if (edgeStackVec.size() < n) edgeStackVec.resize(n);
+        if (heVec.size() < n) heVec.resize(n);
+        if (edgeStampVec.size() < n) edgeStampVec.resize(n, 0);
         std::size_t size = 1;
         while (size < n * 4) size <<= 1; // power-of-two table, load factor <= 0.25
-        if (hTable.size() < size) {
-            hTable.resize(size);
-            hStamp.resize(size, 0);
+        if (hTableVec.size() < size) {
+            hTableVec.resize(size);
+            hStampVec.resize(size, 0);
         }
         hMask = uint32_t(size) - 1;
     }
