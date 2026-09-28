@@ -709,18 +709,11 @@ void Earcut<N>::indexSegment(Node* head, Node* stop) {
     do {
         const std::size_t b = numBlocks++;
         blockHead[b] = p;
-        double bMinX = std::numeric_limits<double>::max();
-        double bMinY = std::numeric_limits<double>::max();
-        double bMaxX = std::numeric_limits<double>::lowest();
-        double bMaxY = std::numeric_limits<double>::lowest();
+        double bMinX = p->x, bMinY = p->y, bMaxX = p->x, bMaxY = p->y;
         int32_t k = 0;
         do {
             Node* c = p->next;              // edge p->c; bbox must bound both endpoints
             p->z = static_cast<int32_t>(b); // reuse z as the owning block during eliminateHoles (see growBlock)
-            if (p->x < bMinX) bMinX = p->x;
-            if (p->x > bMaxX) bMaxX = p->x;
-            if (p->y < bMinY) bMinY = p->y;
-            if (p->y > bMaxY) bMaxY = p->y;
             if (c->x < bMinX) bMinX = c->x;
             if (c->x > bMaxX) bMaxX = c->x;
             if (c->y < bMinY) bMinY = c->y;
@@ -1030,7 +1023,7 @@ namespace detail {
 // Refine a triangulation toward the constrained Delaunay triangulation by legalizing every interior
 // edge in place with Lawson flips — maximizing the minimum angle and removing most slivers. Adapted
 // from delaunator's edge legalization. Uses non-robust predicates: float input is fine, and the
-// worst case is a not-quite-Delaunay edge, never an invalid mesh. Ported from earcut v3.2.3.
+// worst case is a not-quite-Delaunay edge, never an invalid mesh. Ported from earcut v3.2.4.
 template <typename N>
 class Refiner {
 public:

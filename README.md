@@ -144,4 +144,4 @@ Controls: **←/→** switch fixture, **↑/↓** switch tessellator (earcut / e
 
 ## Status
 
-This is currently based on [earcut 3.2.3](https://github.com/mapbox/earcut/releases/tag/v3.2.3).
+This is currently based on [earcut 3.2.4](https://github.com/mapbox/earcut/releases/tag/v3.2.4).

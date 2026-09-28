@@ -90,6 +90,14 @@ TEST(EarcutBasicTest, EmptyInput) {
     EXPECT_TRUE(tesselator.indices().empty()) << "empty input should produce empty result";
 }
 
+TEST(EarcutBasicTest, CollinearPolygon) {
+    // on the line y = 2x; the shoelace area isn't exactly zero, but there's nothing to triangulate
+    auto polygon = mapbox::fixtures::Polygon<std::pair<double, double>>{{{0.1, 0.2}, {1.3, 2.6}, {2.5, 5.0}, {3.7, 7.4}}};
+    EarcutTesselator<double, decltype(polygon)> tesselator(polygon);
+    tesselator.run();
+    EXPECT_TRUE(tesselator.indices().empty()) << "collinear polygon should produce no triangles";
+}
+
 // The old codegen picked short/int/double per fixture to exercise the templates for integer
 // point types. The runtime loader uses double throughout, so cover the integer paths explicitly
 // here: a square with a square hole triangulates to 8 triangles with zero area deviation.
