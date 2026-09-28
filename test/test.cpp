@@ -92,7 +92,8 @@ TEST(EarcutBasicTest, EmptyInput) {
 
 TEST(EarcutBasicTest, CollinearPolygon) {
     // on the line y = 2x; the shoelace area isn't exactly zero, but there's nothing to triangulate
-    auto polygon = mapbox::fixtures::Polygon<std::pair<double, double>>{{{0.1, 0.2}, {1.3, 2.6}, {2.5, 5.0}, {3.7, 7.4}}};
+    auto polygon =
+        mapbox::fixtures::Polygon<std::pair<double, double>>{{{0.1, 0.2}, {1.3, 2.6}, {2.5, 5.0}, {3.7, 7.4}}};
     EarcutTesselator<double, decltype(polygon)> tesselator(polygon);
     tesselator.run();
     EXPECT_TRUE(tesselator.indices().empty()) << "collinear polygon should produce no triangles";
