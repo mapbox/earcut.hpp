@@ -35,10 +35,10 @@ public:
 
 private:
     struct Node {
-        // i is a (bits(N)-1)-wide field packed alongside the 1-bit steiner flag; mask index to that
+        // i is a (bits(I)-1)-wide field packed alongside the 1-bit steiner flag; mask index to that
         // width so it fits without a narrowing warning (a no-op for any real vertex index).
         Node(N index, double x_, double y_)
-            : x(x_), y(y_), i(index & ((N(1) << (sizeof(N) * 8 - 1)) - 1)), steiner(0) {}
+            : x(x_), y(y_), i(static_cast<I>(index) & ((I(1) << (sizeof(I) * 8 - 1)) - 1)), steiner(0) {}
         Node(const Node&) = delete;
         Node& operator=(const Node&) = delete;
         Node(Node&&) = delete;
@@ -55,10 +55,12 @@ private:
         int32_t z = 0;
 
         // original index in polygon
-        const N i : (sizeof(N) * 8 - 1);
+        using I = typename std::conditional<(sizeof(N) < sizeof(uint32_t)), uint32_t, N>::type;
+        const I i : (sizeof(I) * 8 - 1);
+        N index() const { return static_cast<N>(i); }
 
         // indicates whether this is a steiner point
-        N steiner : 1;
+        I steiner : 1;
 
         // previous and next nodes in z-order
         Node* prevZ = nullptr;
@@ -389,9 +391,9 @@ void Earcut<N>::earcutLinked(Node* ear) {
         // reflex check is hoisted here to avoid constructing the Triangle for reflex corners
         if (area(prev, ear, next) < 0 && (hashing ? isEarHashed(ear) : isEar(ear))) {
             // cut off the triangle
-            indices.emplace_back(prev->i);
-            indices.emplace_back(ear->i);
-            indices.emplace_back(next->i);
+            indices.emplace_back(prev->index());
+            indices.emplace_back(ear->index());
+            indices.emplace_back(next->index());
 
             removeNode(ear);
 
@@ -499,9 +501,9 @@ typename Earcut<N>::Node* Earcut<N>::cureLocalIntersections(Node* start) {
         // a self-intersection where edge (v[i-1],v[i]) intersects (v[i+1],v[i+2]);
         // includeBoundary=false so a mere collinear touch isn't treated as a crossing
         if (intersects(a, p, p->next, b, false) && locallyInside(a, b) && locallyInside(b, a)) {
-            indices.emplace_back(a->i);
-            indices.emplace_back(p->i);
-            indices.emplace_back(b->i);
+            indices.emplace_back(a->index());
+            indices.emplace_back(p->index());
+            indices.emplace_back(b->index());
 
             // remove two nodes involved
             removeNode(p);
@@ -959,8 +961,8 @@ bool Earcut<N>::middleInside(const Node* a, const Node* b) {
 // single ring
 template <typename N>
 typename Earcut<N>::Node* Earcut<N>::splitPolygon(Node* a, Node* b) {
-    Node* a2 = nodes->construct(a->i, a->x, a->y);
-    Node* b2 = nodes->construct(b->i, b->x, b->y);
+    Node* a2 = nodes->construct(a->index(), a->x, a->y);
+    Node* b2 = nodes->construct(b->index(), b->x, b->y);
     Node* an = a->next;
     Node* bp = b->prev;
 

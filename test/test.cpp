@@ -161,6 +161,25 @@ TEST(EarcutTypedInput, SignedSizeContainer) {
     EXPECT_EQ(indices.size() / 3, 8u);
 }
 
+// uint16_t indices cover polygons of up to 65536 vertices, so indices above 32767 must survive too.
+// The long sides are collinear runs that get filtered out early, which keeps the test fast.
+TEST(EarcutIndexType, Uint16MatchesUint32UpTo65536Vertices) {
+    using Ring = std::vector<std::pair<double, double>>;
+    const int side = 32766; // 2 * 32766 outer + 4 hole vertices = 65536
+    Ring outer;
+    for (int k = 0; k < side; k++) outer.emplace_back(k, 0);
+    for (int k = side - 1; k >= 0; k--) outer.emplace_back(k, 10);
+    const std::vector<Ring> polygon{outer, Ring{{side - 20, 4}, {side - 20, 6}, {side - 10, 6}, {side - 10, 4}}};
+
+    const auto wide = mapbox::earcut<uint32_t>(polygon);
+    const auto narrow = mapbox::earcut<uint16_t>(polygon);
+    ASSERT_EQ(narrow.size(), wide.size());
+    EXPECT_EQ(*std::max_element(wide.begin(), wide.end()), 65535u);
+    std::size_t mismatches = 0;
+    for (std::size_t k = 0; k < wide.size(); k++) mismatches += uint32_t(narrow[k]) != wide[k] ? 1u : 0u;
+    EXPECT_EQ(mismatches, 0u);
+}
+
 // ---- refine() ------------------------------------------------------------------------------
 
 template <typename Vertices, typename Indices>
