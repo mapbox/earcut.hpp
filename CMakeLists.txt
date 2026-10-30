@@ -28,6 +28,8 @@ target_include_directories(earcut_hpp INTERFACE
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if (EARCUT_BUILD_TESTS OR EARCUT_BUILD_BENCH OR EARCUT_BUILD_VIZ)
+
 # Fixtures and their expectations are read at runtime from the mapbox/earcut JS repo,
 # fetched here and pinned by tag (kept in lockstep with the port — bump on version updates).
 FetchContent_Declare(earcut_js
@@ -94,6 +96,8 @@ if (EARCUT_WARNING_IS_ERROR)
         $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Werror>
     )
 endif()
+
+endif() # EARCUT_BUILD_TESTS OR EARCUT_BUILD_BENCH OR EARCUT_BUILD_VIZ
 
 if (EARCUT_BUILD_TESTS)
     enable_testing()
