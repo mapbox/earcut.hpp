@@ -5,6 +5,7 @@ option(EARCUT_BUILD_TESTS "Build the earcut test program" ON)
 option(EARCUT_BUILD_BENCH "Build the earcut benchmark program" ON)
 option(EARCUT_BUILD_VIZ "Build the earcut visualizer program" OFF)
 option(EARCUT_WARNING_IS_ERROR "Treat warnings as errors" OFF)
+option(EARCUT_REQUIRE_SYSTEM_PACKAGES "Require system GTest/benchmark/glfw3 packages; fail instead of fetching them over the network" OFF)
 
 include(FetchContent)
 
@@ -39,11 +40,21 @@ FetchContent_Declare(earcut_js
 FetchContent_MakeAvailable(earcut_js)
 
 # picojson: lightweight single-header JSON parser for reading the fixtures at runtime.
-FetchContent_Declare(picojson
-    GIT_REPOSITORY https://github.com/kazuho/picojson.git
-    GIT_TAG v1.3.0
-    GIT_SHALLOW TRUE)
-FetchContent_MakeAvailable(picojson)
+find_package(picojson QUIET)
+if (NOT TARGET picojson::picojson)
+    if (EARCUT_REQUIRE_SYSTEM_PACKAGES)
+        message(FATAL_ERROR "EARCUT_REQUIRE_SYSTEM_PACKAGES is ON but no system picojson was found")
+    endif()
+    FetchContent_Declare(picojson
+        GIT_REPOSITORY https://github.com/kazuho/picojson.git
+        GIT_TAG v1.3.0
+        GIT_SHALLOW TRUE)
+    FetchContent_MakeAvailable(picojson)
+
+    add_library(picojson INTERFACE)
+    target_include_directories(picojson INTERFACE ${picojson_SOURCE_DIR})
+    add_library(picojson::picojson ALIAS picojson)
+endif()
 
 add_library(fixtures OBJECT
     test/fixtures/geometries.cpp test/fixtures/geometries.hpp
@@ -53,7 +64,7 @@ target_compile_options(fixtures PRIVATE
     $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-ffp-contract=off>
 )
 target_link_libraries(fixtures PUBLIC earcut_hpp)
-target_include_directories(fixtures PRIVATE ${picojson_SOURCE_DIR})
+target_link_libraries(fixtures PRIVATE picojson::picojson)
 target_compile_definitions(fixtures PRIVATE
     EARCUT_FIXTURE_DIR="${earcut_js_SOURCE_DIR}/test/fixtures"
     EARCUT_EXPECTED_JSON="${earcut_js_SOURCE_DIR}/test/expected.json"
@@ -103,17 +114,26 @@ if (EARCUT_BUILD_TESTS)
     enable_testing()
 
     # GoogleTest setup
-    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-    set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
-    set(BUILD_GTEST ON CACHE BOOL "" FORCE)
-    FetchContent_Declare(googletest
-        GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG v1.15.2
-        GIT_SHALLOW TRUE)
-    FetchContent_MakeAvailable(googletest)
+    find_package(GTest 1.10 QUIET)
+    if (NOT GTest_FOUND)
+        if (EARCUT_REQUIRE_SYSTEM_PACKAGES)
+            message(FATAL_ERROR "EARCUT_REQUIRE_SYSTEM_PACKAGES is ON but no system GTest >= 1.10 was found")
+        endif()
+        set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+        set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
+        set(BUILD_GTEST ON CACHE BOOL "" FORCE)
+        FetchContent_Declare(googletest
+            GIT_REPOSITORY https://github.com/google/googletest.git
+            GIT_TAG v1.15.2
+            GIT_SHALLOW TRUE)
+        FetchContent_MakeAvailable(googletest)
+        # FetchContent's in-tree googletest doesn't define the GTest:: namespaced targets itself.
+        add_library(GTest::gtest ALIAS gtest)
+        add_library(GTest::gtest_main ALIAS gtest_main)
+    endif()
 
     add_executable(tests test/test.cpp $<TARGET_OBJECTS:fixtures>)
-    target_link_libraries(tests PRIVATE earcut_hpp common gtest gtest_main)
+    target_link_libraries(tests PRIVATE earcut_hpp common GTest::gtest GTest::gtest_main)
 
     # Fix floating-point precision issues on different architectures (see issues #97 and #103)
     target_compile_options(tests PRIVATE
@@ -124,33 +144,46 @@ if (EARCUT_BUILD_TESTS)
 endif()
 if (EARCUT_BUILD_BENCH)
     # Google Benchmark setup
-    set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
-    set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "" FORCE)
-    FetchContent_Declare(benchmark
-        GIT_REPOSITORY https://github.com/google/benchmark.git
-        GIT_TAG v1.9.0
-        GIT_SHALLOW TRUE)
-    FetchContent_MakeAvailable(benchmark)
+    find_package(benchmark 1.6 QUIET)
+    if (NOT benchmark_FOUND)
+        if (EARCUT_REQUIRE_SYSTEM_PACKAGES)
+            message(FATAL_ERROR "EARCUT_REQUIRE_SYSTEM_PACKAGES is ON but no system benchmark >= 1.6 was found")
+        endif()
+        set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+        set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "" FORCE)
+        FetchContent_Declare(benchmark
+            GIT_REPOSITORY https://github.com/google/benchmark.git
+            GIT_TAG v1.9.0
+            GIT_SHALLOW TRUE)
+        FetchContent_MakeAvailable(benchmark)
+    endif()
 
-    # libtess2: fetched download-only (no upstream CMake, so MakeAvailable just populates) and built
-    # here as a static lib linked into the benchmark alone — purely a performance comparison point.
-    # It provides no correctness coverage, so tests/viz never see it.
-    FetchContent_Declare(libtess2
-        GIT_REPOSITORY https://github.com/memononen/libtess2.git
-        GIT_TAG v1.0.2
-        GIT_SHALLOW TRUE)
-    FetchContent_MakeAvailable(libtess2)
+    find_package(libtess2 QUIET)
+    if (NOT TARGET libtess2::libtess2)
+        if (EARCUT_REQUIRE_SYSTEM_PACKAGES)
+            message(FATAL_ERROR "EARCUT_REQUIRE_SYSTEM_PACKAGES is ON but no system libtess2 was found")
+        endif()
+        # libtess2: fetched download-only (no upstream CMake, so MakeAvailable just populates) and built
+        # here as a static lib linked into the benchmark alone — purely a performance comparison point.
+        # It provides no correctness coverage, so tests/viz never see it.
+        FetchContent_Declare(libtess2
+            GIT_REPOSITORY https://github.com/memononen/libtess2.git
+            GIT_TAG v1.0.2
+            GIT_SHALLOW TRUE)
+        FetchContent_MakeAvailable(libtess2)
 
-    file(GLOB LIBTESS2_SOURCE_FILES ${libtess2_SOURCE_DIR}/Source/*.c)
-    add_library(libtess2 STATIC ${LIBTESS2_SOURCE_FILES})
-    target_include_directories(libtess2 PUBLIC ${libtess2_SOURCE_DIR}/Include)
-    target_compile_options(libtess2 PRIVATE
-        $<$<CXX_COMPILER_ID:MSVC>:/wd4244 /wd4267>
-        $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w>
-    )
+        file(GLOB LIBTESS2_SOURCE_FILES ${libtess2_SOURCE_DIR}/Source/*.c)
+        add_library(libtess2 STATIC ${LIBTESS2_SOURCE_FILES})
+        target_include_directories(libtess2 PUBLIC ${libtess2_SOURCE_DIR}/Include)
+        target_compile_options(libtess2 PRIVATE
+            $<$<CXX_COMPILER_ID:MSVC>:/wd4244 /wd4267>
+            $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-w>
+        )
+        add_library(libtess2::libtess2 ALIAS libtess2)
+    endif()
 
     add_executable(bench test/bench.cpp $<TARGET_OBJECTS:fixtures>)
-    target_link_libraries(bench PRIVATE earcut_hpp common benchmark::benchmark libtess2)
+    target_link_libraries(bench PRIVATE earcut_hpp common benchmark::benchmark libtess2::libtess2)
 endif()
 if (EARCUT_BUILD_VIZ)
     add_executable(viz test/viz.cpp $<TARGET_OBJECTS:fixtures>)
@@ -164,6 +197,9 @@ if (EARCUT_BUILD_VIZ)
     # GLFW3
     find_package(glfw3 QUIET) # try to use the system default
     if (NOT glfw3_FOUND)
+        if (EARCUT_REQUIRE_SYSTEM_PACKAGES)
+            message(FATAL_ERROR "EARCUT_REQUIRE_SYSTEM_PACKAGES is ON but no system glfw3 was found")
+        endif()
         set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "Build the GLFW example programs" FORCE)
         set(GLFW_BUILD_TESTS OFF CACHE BOOL "Build the GLFW test programs" FORCE)
         set(GLFW_BUILD_DOCS OFF CACHE BOOL "Build the GLFW documentation" FORCE)
